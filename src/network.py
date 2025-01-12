@@ -1,6 +1,8 @@
 import numpy as np
 import random
 import time
+import json
+import sys
 from utils import *
 
 class Network:
@@ -185,4 +187,32 @@ class Network:
         """Return the vector of partial derivatives \partial C_x /
         \partial a for the output activations."""
         return (output_activations-y)
+    
+    ### Saving a Network
+    def save(self, filename):
+        """Save the neural network to the file ``filename``."""
+        data = {"sizes": self.sizes,
+                "weights": [w.tolist() for w in self.weights],
+                "biases": [b.tolist() for b in self.biases],
+                "cost": str(self.cost.__name__),
+                "regularization": str(self.regularization.__name__)}
+        
+        f = open(filename, "w")
+        json.dump(data, f)
+        f.close()
 
+    #### Loading a Network
+    def load(filename):
+        """Load a neural network from the file ``filename``.  Returns an
+        instance of Network.
+
+        """
+        f = open(filename, "r")
+        data = json.load(f)
+        f.close()
+        cost = getattr(sys.modules[__name__], data["cost"])
+        regularization = getattr(sys.modules[__name__], data["regularization"])
+        net = Network(data["sizes"], cost=cost, regularization=regularization)
+        net.weights = [np.array(w) for w in data["weights"]]
+        net.biases = [np.array(b) for b in data["biases"]]
+        return net
