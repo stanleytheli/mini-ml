@@ -3,5 +3,9 @@ import network
 
 training_data, validation_data, test_data = mnist_loader.load_data_wrapper()
 
-net = network.Network([784, 50, 25, 10])
-net.SGD(training_data, 30, 10, 3.0, test_data = test_data)
+net = network.Network([784, 30, 10])
+net.SGD(training_data, 30, 10, 0.5, 
+        lmbda = 5.0,
+        test_data = test_data, 
+        monitor_test_acc = True
+        )
