@@ -1,12 +1,5 @@
 import numpy as np
 
-def sigmoid(z):
-    return 1.0/(1.0 + np.exp(-z))
-
-def sigmoid_prime(z):
-    """Derivative of the sigmoid function."""
-    return sigmoid(z)*(1-sigmoid(z))
-
 def vectorized_result(j):
     """Return a 10-dimensional unit vector with a 1.0 in the j'th position
     and zeroes elsewhere.  This is used to convert a digit (0...9)
@@ -17,15 +10,43 @@ def vectorized_result(j):
     e[j] = 1.0
     return e
 
+class Sigmoid:
+    def fn(z):
+        return 1.0/(1.0 + np.exp(-z))
+
+    def derivative(z):
+        return Sigmoid.fn(z)*(1-Sigmoid.fn(z))
+
+class tanh:
+    def fn(z):
+        return np.tanh(z)
+    
+    def derivative(z):
+        return 1 - np.tanh(z) * np.tanh(z)
+
+class ReLU:
+    def fn(z):
+        return z * np.greater_equal(z, 0.0)
+    
+    def derivative(z):
+        return np.greater_equal(z, 0.0)
+
+class Softmax:
+    def fn(z):
+        return np.exp(z) / np.sum(np.exp(z), axis=0)
+    
+    def derivative(z):
+        return Softmax.fn(z) * (1 - Softmax.fn(z))
+
 class QuadraticCost:
     def fn(a, y):
         """Return the cost associated with an output ``a`` and the 
         desired output ``y``."""
         return 0.5 * np.linalg.norm(a - y)**2
     
-    def delta(z, a, y):
+    def delta(z, a, y, f):
         """Return the error delta from the output layer."""
-        return (a - y) * sigmoid_prime(z)
+        return (a - y) * f.derivative(z)
 
 class CrossEntropyCost:
     def fn(a, y):
@@ -38,7 +59,7 @@ class CrossEntropyCost:
         """
         return np.sum(np.nan_to_num(-y*np.log(a) - (1-y)*np.log(1-a)))
 
-    def delta(z, a, y):
+    def delta(z, a, y, f):
         """Return the error delta from the output layer."""
         return (a - y)
 

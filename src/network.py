@@ -6,19 +6,29 @@ import sys
 from utils import *
 
 class Network:
-    def __init__(self, sizes, 
+
+    def __init__(self, 
+                 sizes, 
+                 activations,
                  cost = CrossEntropyCost,
                  regularization = L2Regularization):
         self.num_layers = len(sizes)
+        
         self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+        self.activations = activations
+        self.default_param_initializer()
+
         self.cost = cost
         self.regularization = regularization
+
+    def default_param_initializer(self):
+        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
+        self.weights = [np.random.randn(y, x)/np.sqrt(x) 
+                        for x, y in zip(self.sizes[:-1], self.sizes[1:])]
     
     def feedforward(self, a):
-        for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a) + b)
+        for b, w, f in zip(self.biases, self.weights, self.activations):
+            a = f.fn(np.dot(w, a) + b)
         return a
     
     def SGD(self, training_data, epochs, mini_batch_size, eta,
@@ -114,13 +124,13 @@ class Network:
         zs = []
 
         # Feedforward
-        for b, w in zip(self.biases, self.weights):
+        for b, w, f in zip(self.biases, self.weights, self.activations):
             z = np.dot(w, activation) + np.dot(b, np.ones((1, m)))
             zs.append(z)
-            activation = sigmoid(z)
+            activation = f.fn(z)
             activations.append(activation)
         
-        delta = self.cost.delta(zs[-1], activations[-1], Y)
+        delta = self.cost.delta(zs[-1], activations[-1], Y, self.activations[-1])
         # Sum the bias gradients over rows (to get sum over training examples)
         nabla_b[-1] = np.dot(delta, np.ones((m, 1)))
         # Similar process with weights
@@ -129,8 +139,8 @@ class Network:
         # Backpropagation step
         for l in range(2, self.num_layers):
             z = zs[-l]
-            sp = sigmoid_prime(z)
-            delta = np.multiply(np.dot(self.weights[-l+1].transpose(), delta), sp)
+            fp = self.activations[-l].derivative(z)
+            delta = np.multiply(np.dot(self.weights[-l+1].transpose(), delta), fp)
             nabla_b[-l] = np.dot(delta, np.ones((m, 1)))
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
         
