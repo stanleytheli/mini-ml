@@ -31,6 +31,16 @@ class ReLU:
     def derivative(z):
         return np.greater_equal(z, 0.0)
 
+class clippedReLU:
+    clip = 256
+    
+    def fn(z):
+        return z * np.greater_equal(z, 0.0) * np.less_equal(z, clippedReLU.clip) \
+                + clippedReLU.clip * np.greater(z, clippedReLU.clip)
+    
+    def derivative(z):
+        return np.greater_equal(z, 0.0) * np.less_equal(z, clippedReLU.clip)
+
 class Softmax:
     def fn(z):
         return np.exp(z) / np.sum(np.exp(z), axis=0)
