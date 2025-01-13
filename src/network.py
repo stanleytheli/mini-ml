@@ -22,17 +22,23 @@ class Network:
         self.regularization = regularization
 
     def default_param_initializer(self):
-        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
         self.weights = [np.random.randn(y, x)/np.sqrt(x) 
-                        for x, y in zip(self.sizes[:-1], self.sizes[1:])]
+                for x, y in zip(self.sizes[:-1], self.sizes[1:])]
+        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
+        
+        self.weights_v = [np.zeros(w.shape) for w in self.weights]
+        self.biases_v = [np.zeros(b.shape) for b in self.biases]
+    
     
     def feedforward(self, a):
         for b, w, f in zip(self.biases, self.weights, self.activations):
             a = f.fn(np.dot(w, a) + b)
         return a
     
-    def SGD(self, training_data, epochs, mini_batch_size, eta,
-        lmbda = 0,
+    def SGD(self, training_data, epochs, mini_batch_size, 
+        eta, # Learning rate
+        mu = 0, # Momentum coefficient
+        lmbda = 0, # Regularization coefficient
         test_data=None,
         monitor_test_cost=False,
         monitor_test_acc=False,
@@ -62,7 +68,7 @@ class Network:
                 for k in range(0, n, mini_batch_size)]
             
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, eta, lmbda, len(training_data))
+                self.update_mini_batch(mini_batch, eta, mu, lmbda, len(training_data))
             
             time2 = time.time()
 
@@ -86,7 +92,7 @@ class Network:
                 print("Accuracy on test data: {} / {}".format(
                     self.accuracy(test_data), n_test))
     
-    def update_mini_batch(self, mini_batch, eta, lmbda, n):
+    def update_mini_batch(self, mini_batch, eta, mu, lmbda, n):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
         The "mini_batch" is a list of tuples "(x, y)", and "eta"
@@ -102,10 +108,22 @@ class Network:
         # Backpropagation
         nabla_b, nabla_w = self.backprop(X, Y)
 
+        # Update momentum
+        self.weights_v = [mu * w_v - (eta/m)*nw for w_v, nw in zip(self.weights_v, nabla_w)]
+        self.weights_b = [mu * b_v - (eta/m)*nb for b_v, nb in zip(self.biases_v, nabla_b)]
+
+        # Update weights and biases
+        self.weights = [w + w_v - (eta*lmbda/n)*self.regularization.derivative(w)
+                        for w, w_v in zip(self.weights, self.weights_v)]
+        self.biases = [b + b_v 
+                       for b, b_v in zip(self.biases, self.biases_v)]
+
+        """
         self.weights = [w - (eta/m)*nw - (eta*lmbda/n)*self.regularization.derivative(w)
                         for w, nw in zip(self.weights, nabla_w)]
         self.biases = [b - (eta/m)*nb
                        for b, nb in zip(self.biases, nabla_b)]
+        """
 
     def backprop(self, X, Y):
         """Return a tuple ``(nabla_b, nabla_w)`` representing the
@@ -202,6 +220,7 @@ class Network:
     def save(self, filename):
         """Save the neural network to the file ``filename``."""
         data = {"sizes": self.sizes,
+                "activations": [str(func.__name__) for func in self.activations],
                 "weights": [w.tolist() for w in self.weights],
                 "biases": [b.tolist() for b in self.biases],
                 "cost": str(self.cost.__name__),
@@ -222,7 +241,11 @@ class Network:
         f.close()
         cost = getattr(sys.modules[__name__], data["cost"])
         regularization = getattr(sys.modules[__name__], data["regularization"])
-        net = Network(data["sizes"], cost=cost, regularization=regularization)
+        activations = [getattr(sys.modules[__name__], func_name) for func_name in data["activations"]]
+        net = Network(data["sizes"], 
+                      activations,
+                      cost=cost, 
+                      regularization=regularization)
         net.weights = [np.array(w) for w in data["weights"]]
         net.biases = [np.array(b) for b in data["biases"]]
         return net
