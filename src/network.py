@@ -38,7 +38,7 @@ class Network:
     def SGD(self, training_data, epochs, mini_batch_size, 
         eta, # Learning rate
         mu = 0, # Momentum coefficient
-        lmbda = 0, # Regularization coefficient
+        lmbda = 0, # Regularization
         test_data=None,
         monitor_test_cost=False,
         monitor_test_acc=False,
@@ -117,13 +117,6 @@ class Network:
                         for w, w_v in zip(self.weights, self.weights_v)]
         self.biases = [b + b_v 
                        for b, b_v in zip(self.biases, self.biases_v)]
-
-        """
-        self.weights = [w - (eta/m)*nw - (eta*lmbda/n)*self.regularization.derivative(w)
-                        for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b - (eta/m)*nb
-                       for b, nb in zip(self.biases, nabla_b)]
-        """
 
     def backprop(self, X, Y):
         """Return a tuple ``(nabla_b, nabla_w)`` representing the
