@@ -32,14 +32,15 @@ class ReLU:
         return np.greater_equal(z, 0.0)
 
 class clippedReLU:
-    clip = 256
+    def __init__(self, clip = 256):
+        self.clip = clip
     
-    def fn(z):
-        return z * np.greater_equal(z, 0.0) * np.less_equal(z, clippedReLU.clip) \
-                + clippedReLU.clip * np.greater(z, clippedReLU.clip)
+    def fn(self, z):
+        return z * np.greater_equal(z, 0.0) * np.less_equal(z, self.clip) \
+                + self.clip * np.greater(z, self.clip)
     
-    def derivative(z):
-        return np.greater_equal(z, 0.0) * np.less_equal(z, clippedReLU.clip)
+    def derivative(self, z):
+        return np.greater_equal(z, 0.0) * np.less_equal(z, self.clip)
 
 class Softmax:
     def fn(z):
@@ -92,13 +93,15 @@ class L2Regularization:
         return w
     
 class L1PlusL2Regularization:
-    # L1PlusL2 = L1 + alpha * L2. 
-    alpha = 1
+    # L1PlusL2 = alpha * L1 + beta * L2. 
+    def __init__(self, alpha = 1, beta = 1):
+        self.alpha = alpha
+        self.beta = beta
 
-    def cost(w):
+    def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""
-        return L1Regularization.cost(w) + L1PlusL2Regularization.alpha * L2Regularization.cost(w)
+        return self.alpha * L1Regularization.cost(w) + self.beta * L2Regularization.cost(w)
     
-    def derivative(w):
+    def derivative(self, w):
         """Return the derivative of the regularization as a function of the weight ``w``."""
-        return L1Regularization.derivative(w) + L1PlusL2Regularization.alpha * L2Regularization.derivative(w)
+        return self.alpha * L1Regularization.derivative(w) + self.beta * L2Regularization.derivative(w)
