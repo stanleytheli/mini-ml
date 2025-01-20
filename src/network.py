@@ -10,7 +10,7 @@ class Network:
     def __init__(self, 
                  sizes, 
                  activations,
-                 cost = CrossEntropyCost,
+                 cost = CategoricalCrossEntropyCost,
                  regularization = L2Regularization):
         self.num_layers = len(sizes)
         
@@ -110,7 +110,7 @@ class Network:
 
         # Update momentum
         self.weights_v = [mu * w_v - (eta/m)*nw for w_v, nw in zip(self.weights_v, nabla_w)]
-        self.weights_b = [mu * b_v - (eta/m)*nb for b_v, nb in zip(self.biases_v, nabla_b)]
+        self.biases_v = [mu * b_v - (eta/m)*nb for b_v, nb in zip(self.biases_v, nabla_b)]
 
         # Update weights and biases
         self.weights = [w + w_v - (eta*lmbda/n)*self.regularization.derivative(w)
@@ -141,7 +141,8 @@ class Network:
             activation = f.fn(z)
             activations.append(activation)
         
-        delta = self.cost.delta(zs[-1], activations[-1], Y, self.activations[-1])
+        delta =  self.cost.derivative(activations[-1], Y) \
+            * self.activations[-1].derivative(zs[-1])
         # Sum the bias gradients over rows (to get sum over training examples)
         nabla_b[-1] = np.dot(delta, np.ones((m, 1)))
         # Similar process with weights
