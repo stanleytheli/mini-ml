@@ -10,7 +10,7 @@ class Network:
     def __init__(self, 
                  sizes, 
                  activations,
-                 cost = CategoricalCrossEntropyCost,
+                 cost = BinaryCrossEntropyCost,
                  regularization = L2Regularization):
         self.num_layers = len(sizes)
         

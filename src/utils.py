@@ -1,5 +1,7 @@
 import numpy as np
 
+epsilon = 1e-7
+
 def vectorized_result(j):
     """Return a 10-dimensional unit vector with a 1.0 in the j'th position
     and zeroes elsewhere.  This is used to convert a digit (0...9)
@@ -11,28 +13,28 @@ def vectorized_result(j):
     return e
 
 class Sigmoid:
-    def fn(z):
+    def fn(self, z):
         return 1.0/(1.0 + np.exp(-z))
 
-    def derivative(z):
-        return Sigmoid.fn(z)*(1-Sigmoid.fn(z))
+    def derivative(self, z):
+        return self.fn(z)*(1 - self.fn(z))
 
 class tanh:
-    def fn(z):
+    def fn(self, z):
         return np.tanh(z)
     
-    def derivative(z):
+    def derivative(self, z):
         return 1 - np.tanh(z) * np.tanh(z)
 
 class ReLU:
-    def fn(z):
+    def fn(self, z):
         return z * np.greater_equal(z, 0.0)
     
-    def derivative(z):
+    def derivative(self, z):
         return np.greater_equal(z, 0.0)
 
 class clippedReLU:
-    def __init__(self, clip = 256):
+    def __init__(self, clip = 20):
         self.clip = clip
     
     def fn(self, z):
@@ -43,24 +45,25 @@ class clippedReLU:
         return np.greater_equal(z, 0.0) * np.less_equal(z, self.clip)
 
 class Softmax:
-    def fn(z):
+    def fn(self, z):
+        z = z - np.max(z) # For numerical stability
         return np.exp(z) / np.sum(np.exp(z), axis=0)
     
-    def derivative(z):
-        return Softmax.fn(z) * (1 - Softmax.fn(z))
+    def derivative(self, z):
+        return self.fn(z) * (1 - self.fn(z))
 
 class QuadraticCost:
-    def fn(a, y):
+    def fn(self, a, y):
         """Return the cost associated with an output ``a`` and the 
         desired output ``y``."""
         return 0.5 * np.linalg.norm(a - y)**2
     
-    def delta(z, a, y, f):
-        """Return the error delta from the output layer."""
-        return (a - y) * f.derivative(z)
+    def derivative(self, a, y):
+        """Return the derivative with respect to the activation."""
+        return (a - y)
 
-class CrossEntropyCost:
-    def fn(a, y):
+class BinaryCrossEntropyCost:
+    def fn(self, a, y):
         """Return the cost associated with an output ``a`` and desired output
         ``y``.  Note that np.nan_to_num is used to ensure numerical
         stability.  In particular, if both ``a`` and ``y`` have a 1.0
@@ -70,25 +73,26 @@ class CrossEntropyCost:
         """
         return np.sum(np.nan_to_num(-y*np.log(a) - (1-y)*np.log(1-a)))
 
-    def delta(z, a, y, f):
-        """Return the error delta from the output layer."""
-        return (a - y)
+    def derivative(self, a, y):
+        """Return the derivative with respect to the activation."""
+        a = np.clip(a, epsilon, 1 - epsilon)
+        return (a - y) / (a * (1 - a))
 
 class L1Regularization:
-    def cost(w):
+    def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""
         return np.sum(np.abs(w))
     
-    def derivative(w):
+    def derivative(self, w):
         """Return the derivative of the regularization as a function of the weight ``w``."""
         return np.sign(w)
 
 class L2Regularization:
-    def cost(w):
+    def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""
         return 0.5 * np.linalg.norm(w)**2
 
-    def derivative(w):
+    def derivative(self, w):
         """Return the derivative of the regularization as a function of the weight ``w``."""
         return w
     
@@ -98,10 +102,13 @@ class L1PlusL2Regularization:
         self.alpha = alpha
         self.beta = beta
 
+        self.l1 = L1Regularization()
+        self.l2 = L2Regularization()
+
     def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""
-        return self.alpha * L1Regularization.cost(w) + self.beta * L2Regularization.cost(w)
+        return self.alpha * self.l1.cost(w) + self.beta * self.l2.cost(w)
     
     def derivative(self, w):
         """Return the derivative of the regularization as a function of the weight ``w``."""
-        return self.alpha * L1Regularization.derivative(w) + self.beta * L2Regularization.derivative(w)
+        return self.alpha * self.l1.derivative(w) + self.beta * self.l2.derivative(w)
