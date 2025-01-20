@@ -3,7 +3,7 @@ import tensorflow as tf
 import keras
 from keras import datasets, layers, activations, regularizers, optimizers, losses
 
-fashion_mnist = datasets.fashion_mnist
+fashion_mnist = datasets.mnist
 (unnorm_train_images, train_labels), (unnorm_test_images, test_labels) = fashion_mnist.load_data()
 train_images = unnorm_train_images / 255
 test_images = unnorm_test_images / 255
