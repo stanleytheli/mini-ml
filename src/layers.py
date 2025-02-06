@@ -3,13 +3,14 @@ from utils import *
 
 class FullyConnected:
 
-    def __init__(self, input_size, output_size, activation):
+    def __init__(self, input_size, output_size, activation, regularization):
         """Creates a Fully Connected layer."""
         self.input_size = input_size
         self.output_size = output_size
-        self.weights = np.zeros(output_size, input_size)
-        self.bias = np.zeros(output_size, 1)
+        self.weights = np.zeros((output_size, input_size))
+        self.bias = np.zeros((output_size, 1))
         self.activation = activation
+        self.regularization = regularization
 
         self.initialize()
     
@@ -26,7 +27,7 @@ class FullyConnected:
         m = x.shape[1]
         self.prev_a = x
 
-        self.z = np.dot(self.weights, x) + np.dot(self.bias, np.ones(1, m))
+        self.z = np.dot(self.weights, x) + np.dot(self.bias, np.ones((1, m)))
         self.a = self.activation.fn(self.z)
         
         return self.a
@@ -42,7 +43,7 @@ class FullyConnected:
         delta = delta * fp
 
         # dC/dw^l 
-        nabla_w = np.dot(delta, self.prev_a.transpose()) 
+        nabla_w = np.dot(delta, self.prev_a.transpose()) + self.regularization.derivative(self.weights)
         # dC/db^l
         nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
 
