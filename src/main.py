@@ -6,22 +6,22 @@ from layers import *
 
 training_data, validation_data, test_data = mnist_loader.load_data_wrapper()
 
-reg = L2Regularization(0.00025)
+reg = L2Regularization(0.0000625)
 
 net = modular_network.Network(
     [
         Flatten((28, 28, 1)),
-        FullyConnected(28*28, 100, clippedReLU(), reg),
-        FullyConnected(100, 100, clippedReLU(), reg),
+        FullyConnected(28*28, 100, tanh(), reg),
+        FullyConnected(100, 100, tanh(), reg),
         FullyConnected(100, 10, Softmax(), reg),
     ], 
     cost=BinaryCrossEntropyCost()
 )
 
-optim = SGD_momentum_optimizer(0.002, 20, 0.95)
+optim = SGD_momentum_optimizer(0.005, 20, 0.95)
 #optim = SGD_optimizer(0.01, 20)
 net.set_optimizer(optim)
-net.SGD(training_data, 50, 20, test_data, monitor_test_acc=True)
+net.SGD(training_data, 100, 20, test_data, monitor_training_acc=True, monitor_test_acc=True)
 
 """
 net = network.Network([784, 100, 100, 10], 

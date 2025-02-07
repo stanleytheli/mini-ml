@@ -61,14 +61,14 @@ class Network:
 
             print(f"Epoch {j+1} training complete, took {time2 - time1} seconds")
             if monitor_training_cost:
-                cost = self.total_cost(training_data)
+                cost = self.total_cost(training_data[:10000])
                 training_cost.append(cost)
                 print("Cost on training data: {}".format(cost))
             if monitor_training_acc:
-                accuracy = self.accuracy(training_data, convert=True)
+                accuracy = self.accuracy(training_data[:10000], convert=True)
                 training_accuracy.append(accuracy)
                 print("Accuracy on training data: {} / {}".format(
-                    accuracy, n))
+                    accuracy, 10000))
             if monitor_test_cost:
                 cost = self.total_cost(test_data, convert=True)
                 evaluation_cost.append(cost)

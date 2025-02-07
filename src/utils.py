@@ -73,18 +73,17 @@ class tanh:
 
 class ReLU:
     def fn(self, z):
-        return z * np.greater_equal(z, 0.0)
+        return np.clip(z, 0)
     
     def derivative(self, z):
         return np.greater_equal(z, 0.0)
 
 class clippedReLU:
-    def __init__(self, clip = 20):
+    def __init__(self, clip = 5):
         self.clip = clip
     
     def fn(self, z):
-        return z * np.greater_equal(z, 0.0) * np.less_equal(z, self.clip) \
-                + self.clip * np.greater(z, self.clip)
+        return np.clip(z, 0, self.clip)
     
     def derivative(self, z):
         return np.greater_equal(z, 0.0) * np.less_equal(z, self.clip)
