@@ -23,9 +23,9 @@ class Flatten(Layer):
         # input_shape and output_shape are shapes of the individual vectors,
         # NOT the shapes of the matrices that are the actual outputs
 
-        w, h, c = input_shape
         self.input_shape = input_shape
-        self.output_shape = (w * h * c, 1)
+        flattened_size = np.prod(input_shape)
+        self.output_shape = (flattened_size, 1)
     
     def feedforward(self, x):
         """Given a list x containing m training examples which have shape input_shape,

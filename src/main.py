@@ -10,7 +10,7 @@ reg = L2Regularization(0.0000625)
 
 net = modular_network.Network(
     [
-        Flatten((28, 28, 1)),
+        Flatten((28, 28)),
         FullyConnected(28*28, 100, tanh(), reg),
         FullyConnected(100, 100, tanh(), reg),
         FullyConnected(100, 10, Softmax(), reg),
