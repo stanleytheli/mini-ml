@@ -92,25 +92,13 @@ class Network:
         X = np.concatenate([pair[0] for pair in mini_batch], axis=1)
         Y = np.concatenate([pair[1] for pair in mini_batch], axis=1)
 
-        # Backpropagation
-        self.backprop(X, Y)
-
-    def backprop(self, X, Y):
-        """Return a tuple ``(nabla_b, nabla_w)`` representing the
-        gradient for the cost function C_x, summed over all training examples.
-        ``nabla_b`` and ``nabla_w`` are layer-by-layer lists of numpy arrays, similar
-        to ``self.biases`` and ``self.weights``."""
-
-        # m is the number of training examples in this minibatch
-        m = X.shape[1]
-
         # a^L
         a_L = self.feedforward(X)
         # unscaled delta^L
         delta = self.cost.derivative(a_L, Y)
-
+        # backprop
         for layer in reversed(self.layers):
-            delta = layer.update(delta)
+            delta = layer.backprop(delta)
 
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
@@ -156,7 +144,7 @@ class Network:
             if convert: 
                 y = vectorized_result(y)
             cost += self.cost.fn(a, y)/len(data)
-        cost += 0.5*(lmbda/len(data))*sum(self.regularization.cost(w) for w in self.weights)
+        #cost += 0.5*(lmbda/len(data))*sum(self.regularization.cost(w) for w in self.weights)
         return cost
 
     def cost_derivative(self, output_activations, y):
@@ -164,6 +152,7 @@ class Network:
         \partial a for the output activations."""
         return (output_activations-y)
     
+    #TODO
     ### Saving a Network
     def save(self, filename):
         """Save the neural network to the file ``filename``."""
@@ -178,6 +167,7 @@ class Network:
         json.dump(data, f)
         f.close()
 
+    #TODO
     #### Loading a Network
     def load(filename):
         """Load a neural network from the file ``filename``.  Returns an
