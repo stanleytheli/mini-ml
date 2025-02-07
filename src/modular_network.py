@@ -78,7 +78,8 @@ class Network:
                 evaluation_accuracy.append(accuracy)
                 print("Accuracy on test data: {} / {}".format(
                     self.accuracy(test_data), n_test))
-    
+
+
     def update_mini_batch(self, mini_batch, n):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
@@ -88,8 +89,9 @@ class Network:
         # m is the number of training examples in each this minibatch
         m = len(mini_batch)
 
-        # Combine x and y vectors of mini batch into a single matrix
-        X = np.concatenate([pair[0] for pair in mini_batch], axis=1)
+        # X is kept as a list of (28, 28) images
+        X = [pair[0] for pair in mini_batch]
+        # We concatenate Y into a matrix
         Y = np.concatenate([pair[1] for pair in mini_batch], axis=1)
 
         # a^L
@@ -124,10 +126,10 @@ class Network:
 
         """
         if convert:
-            results = [(np.argmax(self.feedforward(x)), np.argmax(y))
+            results = [(np.argmax(self.feedforward([x])), np.argmax(y))
                        for (x, y) in data]
         else:
-            results = [(np.argmax(self.feedforward(x)), y)
+            results = [(np.argmax(self.feedforward([x])), y)
                         for (x, y) in data]
         return sum(int(x == y) for (x, y) in results)
     

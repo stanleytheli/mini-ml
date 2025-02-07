@@ -1,6 +1,7 @@
 import numpy as np
 
 epsilon = 1e-7
+gradientClip = 1000
 
 def vectorized_result(j):
     """Return a 10-dimensional unit vector with a 1.0 in the j'th position

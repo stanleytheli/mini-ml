@@ -1,8 +1,57 @@
 import numpy as np
 from utils import * 
 
-class FullyConnected:
+class Layer:
+    def __init__(self):
+        pass
+    def set_optimizer(self, optimizer):
+        pass
+    def initialize(self):
+        pass
+    def feedforward(self, x):
+        return x
+    def backprop(self, delta):
+        return delta
 
+class Flatten(Layer):
+    def __init__(self, input_shape):
+        """input_shape = (width, height, channels).
+        Creates a flattener layer that flattens lists of m 
+        inputs (width, height, channels) --> a single matrix
+        with shape (width*height*channels, m)"""
+
+        # input_shape and output_shape are shapes of the individual vectors,
+        # NOT the shapes of the matrices that are the actual outputs
+
+        w, h, c = input_shape
+        self.input_shape = input_shape
+        self.output_shape = (w * h * c, 1)
+    
+    def feedforward(self, x):
+        """Given a list x containing m training examples which have shape input_shape,
+        flattens each training example, then concatenates into a single matrix."""
+        m = len(x)
+        
+        a = [0] * m
+        for i in range(m):
+            a[i] = np.reshape(x[i], self.output_shape)
+        
+        a = np.concatenate(a, axis=1)
+        return a
+
+    def backprop(self, delta):
+        """Given the unscaled error deltas, reshapes them to be compatible
+        with the layer before the Flatten."""
+        m = delta.shape[1]
+
+        reshaped = [0] * m
+        delta_list = np.split(delta, range(m), axis=1)[1:]
+        for i in range(m):
+            reshaped[i] = np.reshape(delta_list[i], self.input_shape)
+
+        return reshaped
+
+class FullyConnected(Layer):
     def __init__(self, input_size, output_size, activation, regularization):
         """Creates a Fully Connected layer."""
         self.input_size = input_size
@@ -32,7 +81,7 @@ class FullyConnected:
         
         return self.a
     
-    def update(self, delta):
+    def backprop(self, delta):
         """Given the unscaled error deltas of this layer, updates 
         learnable parameters then returns the unscaled error deltas 
         of the previous layer. Input: delta^l, Output: delta^l-1"""
@@ -60,8 +109,4 @@ class FullyConnected:
         self.bias += bias_upd
 
         # return the unscaled delta^l-1
-        return self.backpropagate(delta)
-
-    def backpropagate(self, delta):
-        """Given scaled delta^l, returns unscaled delta^l-1."""
         return np.dot(self.weights.transpose(), delta)
