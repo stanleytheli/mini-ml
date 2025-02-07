@@ -33,8 +33,8 @@ class FullyConnected:
         return self.a
     
     def update(self, delta):
-        """Given the unscaled error deltas of this layer and an optimizer, 
-        updates learnable parameters then returns the unscaled error deltas 
+        """Given the unscaled error deltas of this layer, updates 
+        learnable parameters then returns the unscaled error deltas 
         of the previous layer. Input: delta^l, Output: delta^l-1"""
         # Input: unscaled delta^l
         # f'^l(z^l)
@@ -43,7 +43,9 @@ class FullyConnected:
         delta = delta * fp
 
         # dC/dw^l 
-        nabla_w = np.dot(delta, self.prev_a.transpose()) + self.regularization.derivative(self.weights)
+        nabla_w = np.dot(delta, self.prev_a.transpose())
+        if self.regularization:
+            nabla_w += self.regularization.derivative(self.weights)
         # dC/db^l
         nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
 

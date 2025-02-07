@@ -12,6 +12,50 @@ def vectorized_result(j):
     e[j] = 1.0
     return e
 
+# Factory class
+class SGD_optimizer:
+    def __init__(self, eta, m):
+        """eta: learning rate; m: minibatch size"""
+        self.eta = eta
+        self.m = m
+    
+    def get_optimizer(self):
+        return _SGD(self.eta, self.m)
+
+class _SGD:
+    def __init__(self, eta, m):
+        self.eta = eta
+        self.m = m
+    
+    def fn(self, nabla_w, nabla_b):
+        return - (self.eta/self.m) * nabla_w, - (self.eta/self.m) * nabla_b
+
+class SGD_momentum_optimizer:
+    def __init__(self, eta, m, beta):
+        """eta: learning rate; m: minibatch size; beta: momentum parameter"""
+        self.eta = eta
+        self.m = m
+        self.beta = beta
+
+    def get_optimizer(self):
+        return _SGD_momentum(self.eta, self.m, self.beta)
+
+class _SGD_momentum:
+    def __init__(self, eta, m, beta):
+        self.eta = eta
+        self.m = m
+        self.beta = beta
+
+        self.w_v = 0
+        self.b_v = 0
+
+    def fn(self, nabla_w, nabla_b):
+        # Forgot the minus sign and spent a few minutes wondering what 
+        # was wrong with my network. Turns out it was doing gradient ascent!
+        self.w_v = - (self.beta * self.w_v + (self.eta/self.m) * nabla_w)
+        self.b_v = - (self.beta * self.b_v + (self.eta/self.m) * nabla_b)
+        return self.w_v, self.b_v
+
 class Sigmoid:
     def fn(self, z):
         return 1.0/(1.0 + np.exp(-z))
@@ -79,31 +123,38 @@ class BinaryCrossEntropyCost:
         return (a - y) / (a * (1 - a))
 
 class L1Regularization:
+    def __init__(self, lmbda):
+        self.lmbda = lmbda
+
     def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""
-        return np.sum(np.abs(w))
+        return self.lmbda * np.sum(np.abs(w))
     
     def derivative(self, w):
         """Return the derivative of the regularization as a function of the weight ``w``."""
-        return np.sign(w)
+        return self.lmbda * np.sign(w)
 
 class L2Regularization:
+    def __init__(self, lmbda):
+        self.lmbda = lmbda
+
     def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""
-        return 0.5 * np.linalg.norm(w)**2
+        return 0.5 * self.lmbda * np.linalg.norm(w)**2
 
     def derivative(self, w):
         """Return the derivative of the regularization as a function of the weight ``w``."""
-        return w
+        return self.lmbda * w
     
 class L1PlusL2Regularization:
     # L1PlusL2 = alpha * L1 + beta * L2. 
-    def __init__(self, alpha = 1, beta = 1):
+    def __init__(self, lmbda, alpha = 1, beta = 1):
+        self.lmbda = lmbda
         self.alpha = alpha
         self.beta = beta
 
-        self.l1 = L1Regularization()
-        self.l2 = L2Regularization()
+        self.l1 = L1Regularization(lmbda)
+        self.l2 = L2Regularization(lmbda)
 
     def cost(self, w):
         """Return the cost of a layer's weights as a function of the weight-matrix ``w``."""

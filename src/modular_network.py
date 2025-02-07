@@ -4,41 +4,28 @@ import time
 import json
 import sys
 from utils import *
+from layers import *
 
 class Network:
 
-    def __init__(self, 
-                 sizes, 
-                 activations,
-                 cost = BinaryCrossEntropyCost(),
-                 regularization = L2Regularization(1)):
-        self.num_layers = len(sizes)
-        
-        self.sizes = sizes
-        self.activations = activations
-        self.default_param_initializer()
-
+    def __init__(self, layers, cost):
+        self.num_layers = len(layers)
+        self.layers = layers
         self.cost = cost
-        self.regularization = regularization
-
-    def default_param_initializer(self):
-        self.weights = [np.random.randn(y, x)/np.sqrt(x) 
-                for x, y in zip(self.sizes[:-1], self.sizes[1:])]
-        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
-        
-        self.weights_v = [np.zeros(w.shape) for w in self.weights]
-        self.biases_v = [np.zeros(b.shape) for b in self.biases]
     
+    def set_optimizer(self, optimizer):
+        for layer in self.layers:
+            # the optimizer object passed into the modular network is more like
+            # an optimizer factory, which is why get_optimizer() exists. 
+            # this choice was made to allow compartmentalization of layers.
+            layer.set_optimizer(optimizer.get_optimizer())
     
     def feedforward(self, a):
-        for b, w, f in zip(self.biases, self.weights, self.activations):
-            a = f.fn(np.dot(w, a) + b)
+        for layer in self.layers:
+            a = layer.feedforward(a)
         return a
     
     def SGD(self, training_data, epochs, mini_batch_size, 
-        eta, # Learning rate
-        mu = 0, # Momentum coefficient
-        lmbda = 0, # Regularization
         test_data=None,
         monitor_test_cost=False,
         monitor_test_acc=False,
@@ -68,13 +55,13 @@ class Network:
                 for k in range(0, n, mini_batch_size)]
             
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, eta, mu, lmbda, len(training_data))
+                self.update_mini_batch(mini_batch, len(training_data))
             
             time2 = time.time()
 
             print(f"Epoch {j+1} training complete, took {time2 - time1} seconds")
             if monitor_training_cost:
-                cost = self.total_cost(training_data, lmbda)
+                cost = self.total_cost(training_data)
                 training_cost.append(cost)
                 print("Cost on training data: {}".format(cost))
             if monitor_training_acc:
@@ -83,7 +70,7 @@ class Network:
                 print("Accuracy on training data: {} / {}".format(
                     accuracy, n))
             if monitor_test_cost:
-                cost = self.total_cost(test_data, lmbda, convert=True)
+                cost = self.total_cost(test_data, convert=True)
                 evaluation_cost.append(cost)
                 print("Cost on test data: {}".format(cost))
             if monitor_test_acc:
@@ -92,7 +79,7 @@ class Network:
                 print("Accuracy on test data: {} / {}".format(
                     self.accuracy(test_data), n_test))
     
-    def update_mini_batch(self, mini_batch, eta, mu, lmbda, n):
+    def update_mini_batch(self, mini_batch, n):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
         The "mini_batch" is a list of tuples "(x, y)", and "eta"
@@ -106,17 +93,7 @@ class Network:
         Y = np.concatenate([pair[1] for pair in mini_batch], axis=1)
 
         # Backpropagation
-        nabla_b, nabla_w = self.backprop(X, Y)
-
-        # Update momentum
-        self.weights_v = [mu * w_v - (eta/m)*nw for w_v, nw in zip(self.weights_v, nabla_w)]
-        self.biases_v = [mu * b_v - (eta/m)*nb for b_v, nb in zip(self.biases_v, nabla_b)]
-
-        # Update weights and biases
-        self.weights = [w + w_v - (eta*lmbda/n)*self.regularization.derivative(w)
-                        for w, w_v in zip(self.weights, self.weights_v)]
-        self.biases = [b + b_v 
-                       for b, b_v in zip(self.biases, self.biases_v)]
+        self.backprop(X, Y)
 
     def backprop(self, X, Y):
         """Return a tuple ``(nabla_b, nabla_w)`` representing the
@@ -127,36 +104,13 @@ class Network:
         # m is the number of training examples in this minibatch
         m = X.shape[1]
 
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        # a^L
+        a_L = self.feedforward(X)
+        # unscaled delta^L
+        delta = self.cost.derivative(a_L, Y)
 
-        activation = X
-        activations = [X]
-        zs = []
-
-        # Feedforward
-        for b, w, f in zip(self.biases, self.weights, self.activations):
-            z = np.dot(w, activation) + np.dot(b, np.ones((1, m)))
-            zs.append(z)
-            activation = f.fn(z)
-            activations.append(activation)
-        
-        delta =  self.cost.derivative(activations[-1], Y) \
-            * self.activations[-1].derivative(zs[-1])
-        # Sum the bias gradients over rows (to get sum over training examples)
-        nabla_b[-1] = np.dot(delta, np.ones((m, 1)))
-        # Similar process with weights
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
-
-        # Backpropagation step
-        for l in range(2, self.num_layers):
-            z = zs[-l]
-            fp = self.activations[-l].derivative(z)
-            delta = np.multiply(np.dot(self.weights[-l+1].transpose(), delta), fp)
-            nabla_b[-l] = np.dot(delta, np.ones((m, 1)))
-            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
-        
-        return (nabla_b, nabla_w)
+        for layer in reversed(self.layers):
+            delta = layer.update(delta)
 
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
