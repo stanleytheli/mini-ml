@@ -17,7 +17,8 @@ net = modular_network.Network(
     cost=BinaryCrossEntropyCost()
 )
 
-optim = SGD_momentum_optimizer(0.01, 20)
+optim = SGD_momentum_optimizer(0.002, 20, 0.95)
+#optim = SGD_optimizer(0.01, 20)
 net.set_optimizer(optim)
 net.SGD(training_data, 20, 20, test_data, monitor_test_acc=True)
 
