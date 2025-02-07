@@ -49,8 +49,13 @@ class FullyConnected:
         # dC/db^l
         nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
 
+        gradientClip = 1000
+        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
+
         # update learnables
         weights_upd, bias_upd = self.optimizer.fn(nabla_w, nabla_b)
+
         self.weights += weights_upd
         self.bias += bias_upd
 
