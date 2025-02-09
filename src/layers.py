@@ -86,8 +86,8 @@ class Convolution(Layer):
         for i in range(m):
             delta[i] = delta[i] * self.activation.derivative(self.z[i])
         
-        nabla_k = [np.zeros(self.filter_shape) for _ in self.num_filters]
-        nabla_b = [0 for _ in self.num_filters]
+        nabla_k = np.array([np.zeros(self.filter_shape) for _ in self.num_filters])
+        nabla_b = np.array([0 for _ in self.num_filters])
 
         # calculate gradients
         for f in range(self.num_filters):
@@ -98,20 +98,30 @@ class Convolution(Layer):
                 sci.correlate(self.prev_a[c], delta[c * self.num_filters + f], mode="valid")
                 for c in range(self.input_channels)
             ]
-            nabla_k = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+            nabla_k[f] = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
 
             # dC/db
             nablas = [
                 np.sum(delta[c * self.num_filters + f])
                 for c in range(self.input_channels)
             ]
-            nabla_b = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+            nabla_b[f] = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+
+            # PROBLEM with below code: MESSES UP MOMENTUM! 
+            # all backprop() functions must call self.optimizer.fn ONCE at most
 
             # update learnables
-            weights_upd, bias_upd = self.optimizer.fn(nabla_k, nabla_b)
+            #weights_upd, bias_upd = self.optimizer.fn(nabla_k, nabla_b)
 
-            self.filters[f] += weights_upd
-            self.bias[f] += bias_upd
+            #self.filters[f] += weights_upd
+            #self.biases[f] += bias_upd
+
+        weights_upd, biases_upd = self.optimizer.fn(nabla_k, nabla_b)
+
+        # update learnables
+        for f in range(self.num_filters):
+            self.filters[f] += weights_upd[f]
+            self.biases[f] += biases_upd[f]
 
         # calculate previous layer's unscaled error deltas
         previous_deltas = [0] * self.input_channels
