@@ -35,6 +35,9 @@ class Convolution(Layer):
         #self.a = [0] * filters
 
         self.initialize()
+    
+    def set_optimizer(self, optimizer):
+        self.optimizer = optimizer
 
     def initialize(self):
         for i in range(len(self.filters)):
@@ -47,6 +50,7 @@ class Convolution(Layer):
         with shape (channels*filters, height', width')."""
         m = len(x)
 
+        self.prev_a = x
         self.z = [0] * m
         self.a = [0] * m
 
@@ -76,14 +80,50 @@ class Convolution(Layer):
         (channels, height, width), updates this layer's learnables and 
         returns the unscaled error deltas of the previous layer as 
         another list of m deltas each with shape (channels/filters, height, width)"""
-        # TODO
         m = len(delta)
 
         # scale the error deltas
         for i in range(m):
             delta[i] = delta[i] * self.activation.derivative(self.z[i])
+        
+        nabla_k = [np.zeros(self.filter_shape) for _ in self.num_filters]
+        nabla_b = [0 for _ in self.num_filters]
 
+        # calculate gradients
+        for f in range(self.num_filters):
+            gradientClip = 10
 
+            # dC/dk
+            nablas = [
+                sci.correlate(self.prev_a[c], delta[c * self.num_filters + f], mode="valid")
+                for c in range(self.input_channels)
+            ]
+            nabla_k = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+
+            # dC/db
+            nablas = [
+                np.sum(delta[c * self.num_filters + f])
+                for c in range(self.input_channels)
+            ]
+            nabla_b = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+
+            # update learnables
+            weights_upd, bias_upd = self.optimizer.fn(nabla_k, nabla_b)
+
+            self.filters[f] += weights_upd
+            self.bias[f] += bias_upd
+
+        # calculate previous layer's unscaled error deltas
+        previous_deltas = [0] * self.input_channels
+        for c in range(self.input_channels):
+            conved_deltas = [
+                sci.correlate(np.fliplr(np.flipud(self.filters[f])), \
+                              delta[c*self.num_filters+f], \
+                                mode="full")
+                for f in range(c * self.num_filters, (c + 1) * self.num_filters)
+            ]
+            previous_deltas[c] = np.sum(conved_deltas, axis=0)
+        return previous_deltas
             
 class MaxPool(Layer):
     def __init__(self, input_shape, pool_shape=(2,2)):
