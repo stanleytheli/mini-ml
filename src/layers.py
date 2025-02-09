@@ -1,8 +1,10 @@
 import numpy as np
+import scipy.signal as sci
 from utils import * 
 
 class Layer:
     def __init__(self):
+        self.trainable = True
         pass
     def set_optimizer(self, optimizer):
         pass
@@ -13,6 +15,76 @@ class Layer:
     def backprop(self, delta):
         return delta
 
+class Convolution(Layer):
+    def __init__(self, input_shape, filter_shape, filters, activation, regularization=None):
+        """input_shape = (channels, height, width) or (height, width)
+        filter_shape = (height, width)
+        filters = number of channels/filters. 
+        output shape = (input_channels*filters, height, width)
+        Creates a convolutional layer."""
+        self.input_shape = input_shape
+        self.input_channels = input_shape[0]
+        self.filter_shape = filter_shape
+        self.num_filters = filters
+        self.filters = [np.zeros(filter_shape) for i in range(filters)]
+        self.biases = [np.zeros(filter_shape) for i in range(filters)]
+        self.regularization = regularization
+        self.activation = activation
+
+        #self.z = [0] * filters
+        #self.a = [0] * filters
+
+        self.initialize()
+
+    def initialize(self):
+        for i in range(len(self.filters)):
+            self.filters[i] = np.random.randn(*self.filter_shape)
+            self.biases[i] = np.random.randn()
+    
+    def feedforward(self, x):
+        """Given a list of m training examples which have shape (channels, height, width),
+        calculates their convolutions and returns in the form of a list of m tensors 
+        with shape (channels*filters, height', width')."""
+        m = len(x)
+
+        self.z = [0] * m
+        self.a = [0] * m
+
+        for i in range(m):
+            # x[i] is current training example of shape 
+            convoluted_channels = [0] * self.input_channels * self.num_filters
+            for c in range(self.input_channels):
+                for f in range(self.num_filters):
+                    # maybe it should really be called a "correlation layer"...
+                    convoluted_channels[c * self.num_filters + f] = \
+                    sci.correlate(x[i][c], self.filters[f], mode="valid") + self.biases[f] 
+                    # to retrieve c: c = index // self.num_filters
+                    # to retrieve f: f = index mod self.num_filters
+                    # channel c first index is c * self.num_filters
+            convoluted = np.stack(convoluted_channels, axis=0)
+            self.z[i] = convoluted
+            self.a[i] = self.activation.fn(convoluted)
+
+        return self.a
+
+        #for i in range(self.num_filters):
+        #    self.z[i] = sci.convolve2d(x, self.filters[i], mode="valid") + self.biases[i]
+        #    self.a[i] = self.activation.fn(self.z[i])
+    
+    def backprop(self, delta):
+        """Given a list of m unscaled error deltas, each of shape 
+        (channels, height, width), updates this layer's learnables and 
+        returns the unscaled error deltas of the previous layer as 
+        another list of m deltas each with shape (channels/filters, height, width)"""
+        # TODO
+        m = len(delta)
+
+        # scale the error deltas
+        for i in range(m):
+            delta[i] = delta[i] * self.activation.derivative(self.z[i])
+
+
+            
 class MaxPool(Layer):
     def __init__(self, input_shape, pool_shape=(2,2)):
         """input_shape = (channels, height, width). 
@@ -20,6 +92,9 @@ class MaxPool(Layer):
         Creates a MaxPool layer. """
         self.input_shape = input_shape
         self.pool_shape = pool_shape
+
+        if len(input_shape) == 2:
+            self.mode_2d = True
 
     def feedforward(self, x):
         """Given a list of m training examples which have shape (channels, height, width),
@@ -98,7 +173,6 @@ class MaxPool(Layer):
             deltas_list[i] = reshaped_deltas
         
         return deltas_list
-
 
 class Flatten(Layer):
     def __init__(self, input_shape):
