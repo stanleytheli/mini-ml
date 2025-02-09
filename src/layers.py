@@ -16,7 +16,8 @@ class Layer:
         return delta
 
 class Convolution(Layer):
-    def __init__(self, input_shape, filter_shape, filters, activation, regularization=None):
+    def __init__(self, input_shape, filter_shape, filters, activation, 
+                 regularization=None, correct2Dinput = False):
         """input_shape = (channels, height, width) or (height, width)
         filter_shape = (height, width)
         filters = number of channels/filters. 
@@ -30,6 +31,7 @@ class Convolution(Layer):
         self.biases = [np.zeros(filter_shape) for i in range(filters)]
         self.regularization = regularization
         self.activation = activation
+        self.correct2Dinput = correct2Dinput
 
         #self.z = [0] * filters
         #self.a = [0] * filters
@@ -49,6 +51,10 @@ class Convolution(Layer):
         calculates their convolutions and returns in the form of a list of m tensors 
         with shape (channels*filters, height', width')."""
         m = len(x)
+
+        if self.correct2Dinput:
+            for i in range(m):
+                x[i] = np.array([x[i]])
 
         self.prev_a = x
         self.z = [0] * m
@@ -86,8 +92,8 @@ class Convolution(Layer):
         for i in range(m):
             delta[i] = delta[i] * self.activation.derivative(self.z[i])
         
-        nabla_k = np.array([np.zeros(self.filter_shape) for _ in self.num_filters])
-        nabla_b = np.array([0 for _ in self.num_filters])
+        nabla_k = np.array([np.zeros(self.filter_shape) for _ in range(self.num_filters)])
+        nabla_b = np.zeros((self.num_filters,))
 
         # calculate gradients
         for f in range(self.num_filters):
@@ -95,17 +101,19 @@ class Convolution(Layer):
 
             # dC/dk
             nablas = [
-                sci.correlate(self.prev_a[c], delta[c * self.num_filters + f], mode="valid")
-                for c in range(self.input_channels)
+                [sci.correlate(self.prev_a[i][c], delta[i][c * self.num_filters + f], mode="valid")
+                 for c in range(self.input_channels)
+                ] for i in range(m)
             ]
-            nabla_k[f] = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+            nabla_k[f] = np.clip(np.sum(nablas, axis=(0, 1)), -gradientClip, gradientClip)
 
             # dC/db
             nablas = [
-                np.sum(delta[c * self.num_filters + f])
-                for c in range(self.input_channels)
+                [np.sum(delta[i][c * self.num_filters + f])
+                 for c in range(self.input_channels)
+                ] for i in range(m)
             ]
-            nabla_b[f] = np.clip(np.sum(nablas, axis=0), -gradientClip, gradientClip)
+            nabla_b[f] = np.clip(np.sum(nablas, axis=(0, 1)), -gradientClip, gradientClip)
 
             # PROBLEM with below code: MESSES UP MOMENTUM! 
             # all backprop() functions must call self.optimizer.fn ONCE at most
@@ -127,12 +135,13 @@ class Convolution(Layer):
         previous_deltas = [0] * self.input_channels
         for c in range(self.input_channels):
             conved_deltas = [
-                sci.correlate(np.fliplr(np.flipud(self.filters[f])), \
-                              delta[c*self.num_filters+f], \
+                [sci.correlate(np.fliplr(np.flipud(self.filters[f])), \
+                              delta[i][c*self.num_filters+f], \
                                 mode="full")
                 for f in range(c * self.num_filters, (c + 1) * self.num_filters)
+                ] for i in range(m)
             ]
-            previous_deltas[c] = np.sum(conved_deltas, axis=0)
+            previous_deltas[c] = np.sum(conved_deltas, axis=(0, 1))
         return previous_deltas
             
 class MaxPool(Layer):
@@ -243,7 +252,7 @@ class Flatten(Layer):
         """Given a list x containing m training examples which have shape input_shape,
         flattens each training example, then concatenates into a single matrix."""
         m = len(x)
-        
+
         a = [0] * m
         for i in range(m):
             a[i] = np.reshape(x[i], self.output_shape)

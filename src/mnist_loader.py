@@ -71,9 +71,14 @@ def load_data_wrapper():
     code."""
     tr_d, va_d, te_d = load_data()
     training_results = [vectorized_result(y) for y in tr_d[1]]
-    training_data = list(zip(tr_d[0], training_results))
-    validation_data = list(zip(va_d[0], va_d[1]))
-    test_data = list(zip(te_d[0], te_d[1]))
+
+    tr_images = [np.reshape(image, (28, 28)) for image in tr_d[0]]
+    va_images = [np.reshape(image, (28, 28)) for image in va_d[0]]
+    te_images = [np.reshape(image, (28, 28)) for image in te_d[0]]
+
+    training_data = list(zip(tr_images, training_results))
+    validation_data = list(zip(va_images, va_d[1]))
+    test_data = list(zip(te_images, te_d[1]))
     return (training_data, validation_data, test_data)
 
 def vectorized_result(j):

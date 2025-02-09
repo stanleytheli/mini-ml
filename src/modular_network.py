@@ -22,9 +22,32 @@ class Network:
     
     def feedforward(self, a):
         for layer in self.layers:
+            #now = time.time()
             a = layer.feedforward(a)
+            #print("feedforward", type(layer).__name__, "took", time.time() - now)
         return a
     
+    def update_mini_batch(self, mini_batch, n):
+        """Update the network's weights and biases by applying
+        gradient descent using backpropagation to a single mini batch.
+        The "mini_batch" is a list of tuples "(x, y)", and "eta"
+        is the learning rate."""
+
+        # X is kept as a list of (28, 28) images
+        X = [pair[0] for pair in mini_batch]
+        # We concatenate Y into a matrix
+        Y = np.concatenate([pair[1] for pair in mini_batch], axis=1)
+
+        # a^L
+        a_L = self.feedforward(X)
+        # unscaled delta^L
+        delta = self.cost.derivative(a_L, Y)
+        # backprop
+        for layer in reversed(self.layers):
+            #now = time.time()
+            delta = layer.backprop(delta)
+            #print("backprop", type(layer).__name__, "took", time.time() - now)
+
     def SGD(self, training_data, epochs, mini_batch_size, 
         test_data=None,
         monitor_test_cost=False,
@@ -78,29 +101,6 @@ class Network:
                 evaluation_accuracy.append(accuracy)
                 print("Accuracy on test data: {} / {}".format(
                     self.accuracy(test_data), n_test))
-
-
-    def update_mini_batch(self, mini_batch, n):
-        """Update the network's weights and biases by applying
-        gradient descent using backpropagation to a single mini batch.
-        The "mini_batch" is a list of tuples "(x, y)", and "eta"
-        is the learning rate."""
-
-        # m is the number of training examples in each this minibatch
-        m = len(mini_batch)
-
-        # X is kept as a list of (28, 28) images
-        X = [pair[0] for pair in mini_batch]
-        # We concatenate Y into a matrix
-        Y = np.concatenate([pair[1] for pair in mini_batch], axis=1)
-
-        # a^L
-        a_L = self.feedforward(X)
-        # unscaled delta^L
-        delta = self.cost.derivative(a_L, Y)
-        # backprop
-        for layer in reversed(self.layers):
-            delta = layer.backprop(delta)
 
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
