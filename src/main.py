@@ -6,7 +6,7 @@ from layers import *
 
 training_data, validation_data, test_data = mnist_loader.load_data_wrapper()
 
-reg = L2Regularization(0.0000625)
+reg = L2Regularization(3.125 / 50000)
 
 net = modular_network.Network(
     [
