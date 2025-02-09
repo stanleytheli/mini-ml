@@ -57,6 +57,13 @@ class _SGD_momentum:
         self.b_v = - (self.beta * self.b_v + (self.eta/self.m) * nabla_b)
         return self.w_v, self.b_v
 
+class noActivation:
+    def fn(self, z):
+        return z
+    
+    def derivative(self, z):
+        return np.ones(z.shape)
+
 class Sigmoid:
     def fn(self, z):
         return 1.0/(1.0 + np.exp(-z))
