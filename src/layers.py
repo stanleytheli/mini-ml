@@ -52,7 +52,7 @@ class Convolution(Layer):
         returns convolutions of shape (batch, channels*filters, height', width')
         where height' = height - filter_height + 1 and analogously for width"""
         if self.correct2Dinput:
-            x = x.reshape(1, *x.shape)
+            x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
 
         m, C, H, W = x.shape
         F = self.num_filters
@@ -130,10 +130,6 @@ class Convolution_List(Layer):
         self.regularization = regularization
         self.activation = activation
         self.correct2Dinput = correct2Dinput
-
-        #self.z = [0] * filters
-        #self.a = [0] * filters
-
         self.initialize()
     
     def set_optimizer(self, optimizer):
