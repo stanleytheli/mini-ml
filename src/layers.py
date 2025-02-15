@@ -112,131 +112,6 @@ class Convolution(Layer):
             # (1, 1, h_f, w_f) full_corr (m, C, H', W') --> (m, C, H, W)
         previous_deltas = np.sum(previous_deltas, axis=2) # (m, C, H, W)
         return previous_deltas
-
-class Convolution_List(Layer):
-    def __init__(self, input_shape, filter_shape, filters, activation, 
-                 regularization=None, correct2Dinput = False):
-        """input_shape = (channels, height, width) or (height, width)
-        filter_shape = (height, width)
-        filters = number of channels/filters. 
-        output shape = (input_channels*filters, height, width)
-        Creates a convolutional layer."""
-        self.input_shape = input_shape
-        self.input_channels = input_shape[0]
-        self.filter_shape = filter_shape
-        self.num_filters = filters
-        self.filters = [np.zeros((1, 1, *filter_shape)) for i in range(filters)]
-        self.biases = [0] * filters
-        self.regularization = regularization
-        self.activation = activation
-        self.correct2Dinput = correct2Dinput
-        self.initialize()
-    
-    def set_optimizer(self, optimizer):
-        self.optimizer = optimizer
-
-    def initialize(self):
-        for i in range(len(self.filters)):
-            self.filters[i] = np.random.randn(*self.filter_shape)
-            self.biases[i] = np.random.randn()
-    
-    def feedforward(self, x):
-        """Given a list of m training examples which have shape (channels, height, width),
-        calculates their convolutions and returns in the form of a list of m tensors 
-        with shape (channels*filters, height', width')."""
-        m = len(x)
-
-        if self.correct2Dinput:
-            for i in range(m):
-                x[i] = np.array([x[i]])
-
-        self.prev_a = x
-        self.z = [0] * m
-        self.a = [0] * m
-
-        for i in range(m):
-            # x[i] is current training example of shape 
-            convoluted_channels = [0] * self.input_channels * self.num_filters
-            for c in range(self.input_channels):
-                for f in range(self.num_filters):
-                    # maybe it should really be called a "correlation layer"...
-                    convoluted_channels[c * self.num_filters + f] = \
-                    sci.correlate(x[i][c], self.filters[f], mode="valid") + self.biases[f] 
-                    # to retrieve c: c = index // self.num_filters
-                    # to retrieve f: f = index mod self.num_filters
-                    # channel c first index is c * self.num_filters
-            convoluted = np.stack(convoluted_channels, axis=0)
-            self.z[i] = convoluted
-            self.a[i] = self.activation.fn(convoluted)
-
-        return self.a
-
-        #for i in range(self.num_filters):
-        #    self.z[i] = sci.convolve2d(x, self.filters[i], mode="valid") + self.biases[i]
-        #    self.a[i] = self.activation.fn(self.z[i])
-    
-    def backprop(self, delta):
-        """Given a list of m unscaled error deltas, each of shape 
-        (channels, height, width), updates this layer's learnables and 
-        returns the unscaled error deltas of the previous layer as 
-        another list of m deltas each with shape (channels/filters, height, width)"""
-        m = len(delta)
-
-        # scale the error deltas
-        for i in range(m):
-            delta[i] = delta[i] * self.activation.derivative(self.z[i])
-        
-        nabla_k = np.array([np.zeros(self.filter_shape) for _ in range(self.num_filters)])
-        nabla_b = np.zeros((self.num_filters,))
-
-        # calculate gradients
-        for f in range(self.num_filters):
-            gradientClip = 10
-
-            # dC/dk
-            nablas = [
-                [sci.correlate(self.prev_a[i][c], delta[i][c * self.num_filters + f], mode="valid")
-                 for c in range(self.input_channels)
-                ] for i in range(m)
-            ]
-            nabla_k[f] = np.clip(np.sum(nablas, axis=(0, 1)), -gradientClip, gradientClip)
-
-            # dC/db
-            nablas = [
-                [np.sum(delta[i][c * self.num_filters + f])
-                 for c in range(self.input_channels)
-                ] for i in range(m)
-            ]
-            nabla_b[f] = np.clip(np.sum(nablas, axis=(0, 1)), -gradientClip, gradientClip)
-
-            # PROBLEM with below code: MESSES UP MOMENTUM! 
-            # all backprop() functions must call self.optimizer.fn ONCE at most
-
-            # update learnables
-            #weights_upd, bias_upd = self.optimizer.fn(nabla_k, nabla_b)
-
-            #self.filters[f] += weights_upd
-            #self.biases[f] += bias_upd
-
-        weights_upd, biases_upd = self.optimizer.fn(nabla_k, nabla_b)
-
-        # update learnables
-        for f in range(self.num_filters):
-            self.filters[f] += weights_upd[f]
-            self.biases[f] += biases_upd[f]
-
-        # calculate previous layer's unscaled error deltas
-        previous_deltas = [0] * self.input_channels
-        for c in range(self.input_channels):
-            conved_deltas = [
-                [sci.correlate(np.fliplr(np.flipud(self.filters[f])), \
-                              delta[i][c*self.num_filters+f], \
-                                mode="full")
-                for f in range(c * self.num_filters, (c + 1) * self.num_filters)
-                ] for i in range(m)
-            ]
-            previous_deltas[c] = np.sum(conved_deltas, axis=(0, 1))
-        return previous_deltas
             
 class MaxPool(Layer):
     def __init__(self, input_shape, pool_shape=(2,2)):
@@ -327,7 +202,6 @@ class MaxPool(Layer):
         
         return deltas_list
 
-
 class Flatten(Layer):
     def __init__(self, input_shape):
         """input_shape = (channels, height, width).
@@ -349,45 +223,6 @@ class Flatten(Layer):
         """Given the unscaled error deltas, reshapes them to be compatible
         with the layer before the Flatten."""
         return np.reshape(delta.T, (self.m, *self.input_shape))
-
-class Flatten_List(Layer):
-    def __init__(self, input_shape):
-        """input_shape = (channels, height, width).
-        Or just (height, width) for 2D flattening.
-        Creates a flattener layer that flattens lists of m 
-        inputs (channels, height, width) --> a single matrix
-        with shape (channels*height*width, m)"""
-
-        # input_shape and output_shape are shapes of the individual vectors,
-        # NOT the shapes of the matrices that are the actual outputs
-
-        self.input_shape = input_shape
-        flattened_size = np.prod(input_shape)
-        self.output_shape = (flattened_size, 1)
-    
-    def feedforward(self, x):
-        """Given a list x containing m training examples which have shape input_shape,
-        flattens each training example, then concatenates into a single matrix."""
-        m = len(x)
-
-        a = [0] * m
-        for i in range(m):
-            a[i] = np.reshape(x[i], self.output_shape)
-        
-        a = np.concatenate(a, axis=1)
-        return a
-
-    def backprop(self, delta):
-        """Given the unscaled error deltas, reshapes them to be compatible
-        with the layer before the Flatten."""
-        m = delta.shape[1]
-
-        reshaped = [0] * m
-        delta_list = np.split(delta, range(m), axis=1)[1:]
-        for i in range(m):
-            reshaped[i] = np.reshape(delta_list[i], self.input_shape)
-
-        return reshaped
 
 class FullyConnected(Layer):
     def __init__(self, input_size, output_size, activation, regularization):
