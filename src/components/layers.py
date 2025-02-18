@@ -15,6 +15,49 @@ class Layer:
     def backprop(self, delta):
         return delta
 
+class Convolution(Layer):
+    def __init__(self, input_shape, filter_shape, filters, activation, 
+                 regularization=None, correct2Dinput = False):
+        """input_shape = (channels, height, width) or (height, width).
+        IMPORTANT: turn on correct2Dinput=True if input_shape is (height, width).
+        backprop does NOT work with correct2Dinput (so correct2Dinput only works in first layer).
+        filter_shape = (height, width).
+        filters = number of channels/filters. 
+        output shape = (filters, height, width).
+        Creates a convolutional layer."""
+        if correct2Dinput:
+            input_shape = (1, *input_shape)
+
+        self.input_shape = input_shape
+        self.input_channels = input_shape[0]
+        self.filter_shape = filter_shape
+        self.num_filters = filters
+        self.filters = np.zeros((self.num_filters, self.input_channels, *filter_shape)) # (F, C, h_f, w_f)
+        self.biases = np.zeros((self.num_filters,)) # (F,)
+        self.regularization = regularization
+        self.activation = activation
+        self.correct2Dinput = correct2Dinput
+
+        self.initialize()
+
+    def set_optimizer(self, optimizer):
+        self.optimizer = optimizer
+
+    def initialize(self):
+        self.filters = np.random.randn(*self.filters.shape) / np.sqrt(np.prod(self.filter_shape))
+        self.biases = np.random.randn(*self.biases.shape)
+    
+    def feedforward(self, a):
+        """Given an ndarray x of shape (batch, channels, height, width),
+        returns convolutions of shape (batch, channels*filters, height', width')
+        where height' = height - filter_height + 1 and analogously for width"""
+        if self.correct2Dinput:
+            x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
+        ...
+
+    def backprop(self, delta):
+        ...
+
 class Convolution_Independent(Layer):
     def __init__(self, input_shape, filter_shape, filters, activation, 
                  regularization=None, correct2Dinput = False):

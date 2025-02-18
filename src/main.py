@@ -1,5 +1,4 @@
 import mnist_loader
-import network
 import modular_network
 from utils import *
 from components import * 

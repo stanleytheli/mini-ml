@@ -4,7 +4,7 @@ import time
 import json
 import sys
 from utils import *
-from components.layers import *
+from components import *
 
 class Network:
 
