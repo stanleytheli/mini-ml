@@ -101,7 +101,7 @@ class Convolution_Independent(Layer):
         nabla_b = np.sum(delta_bar, axis=(0, 1, 3, 4)) # (F,)
 
         # update learnables
-        weights_upd, biases_upd = self.optimizer.fn(nabla_w, nabla_b)
+        weights_upd, biases_upd = self.optimizer.fn([nabla_w, nabla_b])
         self.filters += weights_upd
         self.biases += biases_upd
 
@@ -276,7 +276,7 @@ class FullyConnected(Layer):
         nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
         # update learnables
-        weights_upd, bias_upd = self.optimizer.fn(nabla_w, nabla_b)
+        weights_upd, bias_upd = self.optimizer.fn([nabla_w, nabla_b])
 
         #if self.regularization:
         #    weights_upd -= 0.001 * self.regularization.derivative(self.weights)
@@ -286,3 +286,51 @@ class FullyConnected(Layer):
 
         # return the unscaled delta^l-1
         return np.dot(self.weights.transpose(), delta)
+
+class FullyConnectedPostbias(FullyConnected):
+    def __init__(self, input_size, output_size, activation, regularization):
+        """Much like a FullyConnected layer, but with another set of biases 
+        applied *after* the activation function."""
+        self.postbias = np.zeros((output_size, 1))
+        super().__init__(input_size, output_size, activation, regularization)
+
+    def initialize(self):
+        super().initialize()
+        self.postbias = np.random.randn(self.output_size, 1)
+    
+    def feedforward(self, a):
+        m = a.shape[1]
+        return super().feedforward(a) + np.dot(self.postbias, np.ones((1, m)))
+
+    def backprop(self, delta):
+        # conveniently the unscaled error deltas are dC/da^l
+
+        # dC/dB^l 
+        nabla_beta = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
+        
+        fp = self.activation.derivative(self.z)
+        # scaled delta^l = dC/dz^l
+        delta = delta * fp
+
+        # dC/dw^l 
+        nabla_w = np.dot(delta, self.prev_a.transpose())
+        if self.regularization:
+            nabla_w += self.regularization.derivative(self.weights)
+        # dC/db^l
+        nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
+
+        gradientClip = 10
+        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
+        nabla_beta = np.clip(nabla_beta, -gradientClip, gradientClip)
+
+        # update learnables
+        weights_upd, bias_upd, postbias_upd = self.optimizer.fn([nabla_w, nabla_b, nabla_beta])
+
+        self.weights += weights_upd
+        self.bias += bias_upd
+        self.postbias += postbias_upd
+
+        # return the unscaled delta^l-1
+        return np.dot(self.weights.transpose(), delta)
+
