@@ -15,7 +15,7 @@ class Layer:
     def backprop(self, delta):
         return delta
 
-class Convolution(Layer):
+class Convolution_Independent(Layer):
     def __init__(self, input_shape, filter_shape, filters, activation, 
                  regularization=None, correct2Dinput = False):
         """input_shape = (channels, height, width) or (height, width).
@@ -44,7 +44,7 @@ class Convolution(Layer):
         self.optimizer = optimizer
 
     def initialize(self):
-        self.filters = np.random.randn(*self.filters.shape)
+        self.filters = np.random.randn(*self.filters.shape) / np.sqrt(np.prod(self.filter_shape))
         self.biases = np.random.randn(*self.biases.shape)
     
     def feedforward(self, x):

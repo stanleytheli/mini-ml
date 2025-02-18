@@ -12,9 +12,9 @@ reg = L2Regularization(3.125 / n_train)
 
 net = modular_network.Network(
     [
-        Convolution((28, 28), (3, 3), 4, noActivation(), correct2Dinput=True),
-        Flatten((4, 26, 26)),
-        FullyConnected(4*26*26, 100, tanh(), reg),
+        Convolution_Independent((28, 28), (5, 5), 1, tanh(), correct2Dinput=True),
+        Flatten((1, 24, 24)),
+        FullyConnected(24*24, 100, tanh(), reg),
         FullyConnected(100, 100, tanh(), reg),
         FullyConnected(100, 10, Softmax(), reg),
     ], 
