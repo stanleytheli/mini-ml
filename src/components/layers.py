@@ -24,7 +24,7 @@ class Convolution_Independent(Layer):
         filter_shape = (height, width).
         filters = number of channels/filters. 
         output shape = (input_channels*filters, height, width).
-        Creates a convolutional layer."""
+        Creates an independent-convolution layer."""
         if correct2Dinput:
             input_shape = (1, *input_shape)
 

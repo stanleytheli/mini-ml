@@ -2,7 +2,7 @@ import mnist_loader
 import network
 import modular_network
 from utils import *
-from layers import *
+from components import * 
 
 training_data, validation_data, test_data = mnist_loader.load_data_wrapper()
 
@@ -15,9 +15,9 @@ net = modular_network.Network(
         #Convolution_Independent((28, 28), (5, 5), 1, tanh(), correct2Dinput=True),
         #Flatten((1, 24, 24)),
         Flatten((28, 28)),
-        FullyConnected(28*28, 100, tanh(), reg),
-        FullyConnected(100, 100, tanh(), reg),
-        FullyConnected(100, 10, Softmax(), reg),
+        FullyConnected(28*28, 30, tanh(), reg),
+        FullyConnected(30, 30, tanh(), reg),
+        FullyConnected(30, 10, Softmax(), reg),
     ], 
     cost=BinaryCrossEntropyCost()
 )
