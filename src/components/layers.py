@@ -102,7 +102,6 @@ class Convolution(Layer):
         # dL/db
         nabla_b = np.sum(delta, axis=(0, 2, 3))
 
-        gradientClip = 10
         nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
         nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
@@ -205,7 +204,6 @@ class Convolution_Independent(Layer):
         # dC/db
         nabla_b = np.sum(delta_bar, axis=(0, 1, 3, 4)) # (F,)
 
-        gradientClip = 10
         nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
         nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
@@ -376,7 +374,6 @@ class FullyConnected(Layer):
         # dC/db^l
         nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
 
-        gradientClip = 10
         nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
         nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
@@ -423,7 +420,6 @@ class FullyConnectedPostbias(FullyConnected):
         # dC/db^l
         nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
 
-        gradientClip = 10
         nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
         nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
         nabla_beta = np.clip(nabla_beta, -gradientClip, gradientClip)
