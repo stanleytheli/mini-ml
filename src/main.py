@@ -11,12 +11,11 @@ reg = L2Regularization(3.125 / n_train)
 
 net = modular_network.Network(
     [
-        #Convolution_Independent((28, 28), (5, 5), 1, tanh(), correct2Dinput=True),
-        #Flatten((1, 24, 24)),
-        Flatten((28, 28)),
-        FullyConnected(28*28, 30, tanh(), reg),
-        FullyConnected(30, 30, tanh(), reg),
-        FullyConnected(30, 10, Softmax(), reg),
+        Convolution((28, 28), (3, 3), 1, tanh(), correct2Dinput = True),
+        Flatten((1, 26, 26)),
+        FullyConnected(26*26, 100, tanh(), reg),
+        FullyConnected(100, 100, tanh(), reg),
+        FullyConnected(100, 10, Softmax(), reg),
     ], 
     cost=BinaryCrossEntropyCost()
 )
@@ -24,6 +23,6 @@ net = modular_network.Network(
 optim = SGD_momentum_optimizer(0.005, 20, 0.95)
 net.set_optimizer(optim)
 net.SGD(training_data, 100, 20, test_data, 
-        monitor_training_acc=True, 
+        monitor_training_acc=False, 
         monitor_test_acc=True,
         benchmark=False)

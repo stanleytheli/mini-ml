@@ -47,16 +47,71 @@ class Convolution(Layer):
         self.filters = np.random.randn(*self.filters.shape) / np.sqrt(np.prod(self.filter_shape))
         self.biases = np.random.randn(*self.biases.shape)
     
-    def feedforward(self, a):
+    def feedforward(self, x):
         """Given an ndarray x of shape (batch, channels, height, width),
         returns convolutions of shape (batch, channels*filters, height', width')
         where height' = height - filter_height + 1 and analogously for width"""
         if self.correct2Dinput:
             x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
-        ...
+        
+        # x = (m, C, H, W)
+        m, C, H, W = x.shape
+        F = self.num_filters
+        h_f, w_f = self.filter_shape
+        Hp, Wp = H - h_f + 1, W - w_f + 1
+
+        self.prev_a = x
+        self.z = np.zeros((m, F, Hp, Wp))
+
+        for f in range(F):
+            filter = self.filters[f] # (C, h_f, w_f)
+            filter = filter.reshape((1, *filter.shape)) # (1, C, h_f, w_f)
+            # (M, C, H, W) corr (1, C, h_f, w_f) --> (M, 1, Hp, Wp)
+            self.z[:, f] = sci.correlate(x, filter, mode="valid")[:, 0] + self.biases[f] 
+        
+        self.a = self.activation.fn(self.z)
+
+        return self.a
 
     def backprop(self, delta):
-        ...
+        C = self.input_channels
+        m, F, Hp, Wp = delta.shape
+        H, W = self.input_shape[1:]
+        h_f, w_f = self.filter_shape
+
+        # scaled error delta
+        delta = delta * self.activation.derivative(self.z) # (M, F, Hp, Wp)
+        delta_bar = delta.reshape((m, F, 1, Hp, Wp)) # (M, F, 1, Hp, Wp)
+
+        # calculate previous layer deltas
+        prev_delta = np.zeros((m, C, H, W))
+        for m_i in range(m):
+            prev_delta_m = np.zeros((C, H, W))
+            for f in range(F):
+                filter_R = np.flip(self.filters[f], axis=(1, 2)) # (C, h_f, w_f) flipped across h_f,w_f
+                # (C, h_f, w_f) full_corr (1, Hp, Wp) --> (C, H, W)
+                prev_delta_m += sci.correlate(filter_R, delta_bar[m_i, f], mode="full")
+            prev_delta[m_i] = prev_delta_m
+
+        # dL/dk_f 
+        nabla_w = np.zeros((F, C, h_f, w_f))
+        for f in range(F):
+            # (M, C, H, W) corr (M, 1, Hp, Wp) --> (1, C, h_f, w_f)
+            nabla_w[f] = sci.correlate(self.prev_a, delta_bar[:, f], mode="valid")[0]
+
+        # dL/db
+        nabla_b = np.sum(delta, axis=(0, 2, 3))
+
+        gradientClip = 10
+        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
+
+        # update learnables
+        weights_upd, biases_upd = self.optimizer.fn([nabla_w, nabla_b])
+        self.filters += weights_upd
+        self.biases += biases_upd
+
+        return prev_delta
 
 class Convolution_Independent(Layer):
     def __init__(self, input_shape, filter_shape, filters, activation, 
@@ -135,6 +190,13 @@ class Convolution_Independent(Layer):
         # filters, reflected across image axes
         filters_bar_R = np.flip(filters_bar, axis=(3, 4)) # (F, 1, 1, h_f, w_f)
 
+        # unscaled error deltas of previous layer
+        previous_deltas = np.zeros((m, C, F, H, W))
+        for f in range(F):
+            previous_deltas[:, :, f] = sci.correlate(filters_bar_R[f], delta_bar[:, :, f], mode="full")
+            # (1, 1, h_f, w_f) full_corr (m, C, H', W') --> (m, C, H, W)
+        previous_deltas = np.sum(previous_deltas, axis=2) # (m, C, H, W)
+
         # dC/dw
         nabla_w = np.zeros(self.filters.shape) # (F, h_f, w_f)
         for f in range(F):
@@ -143,17 +205,15 @@ class Convolution_Independent(Layer):
         # dC/db
         nabla_b = np.sum(delta_bar, axis=(0, 1, 3, 4)) # (F,)
 
+        gradientClip = 10
+        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
+
         # update learnables
         weights_upd, biases_upd = self.optimizer.fn([nabla_w, nabla_b])
         self.filters += weights_upd
         self.biases += biases_upd
 
-        # unscaled error deltas of previous layer
-        previous_deltas = np.zeros((m, C, F, H, W))
-        for f in range(F):
-            previous_deltas[:, :, f] = sci.correlate(filters_bar_R[f], delta_bar[:, :, f], mode="full")
-            # (1, 1, h_f, w_f) full_corr (m, C, H', W') --> (m, C, H, W)
-        previous_deltas = np.sum(previous_deltas, axis=2) # (m, C, H, W)
         return previous_deltas
             
 class MaxPool(Layer):
@@ -289,10 +349,9 @@ class FullyConnected(Layer):
 
     def feedforward(self, x):
         """Given an input x, returns the activations of this layer."""
-        m = x.shape[1]
         self.prev_a = x
 
-        self.z = np.dot(self.weights, x) + np.dot(self.bias, np.ones((1, m)))
+        self.z = np.dot(self.weights, x) + self.bias
         self.a = self.activation.fn(self.z)
         
         return self.a
@@ -306,6 +365,9 @@ class FullyConnected(Layer):
         fp = self.activation.derivative(self.z)
         # scaled delta^l
         delta = delta * fp
+
+        # compute prev_delta BEFORE updating weights!
+        prev_delta = np.dot(self.weights.transpose(), delta)
 
         # dC/dw^l 
         nabla_w = np.dot(delta, self.prev_a.transpose())
@@ -321,14 +383,11 @@ class FullyConnected(Layer):
         # update learnables
         weights_upd, bias_upd = self.optimizer.fn([nabla_w, nabla_b])
 
-        #if self.regularization:
-        #    weights_upd -= 0.001 * self.regularization.derivative(self.weights)
-
         self.weights += weights_upd
         self.bias += bias_upd
 
         # return the unscaled delta^l-1
-        return np.dot(self.weights.transpose(), delta)
+        return prev_delta
 
 class FullyConnectedPostbias(FullyConnected):
     def __init__(self, input_size, output_size, activation, regularization):
@@ -341,9 +400,8 @@ class FullyConnectedPostbias(FullyConnected):
         super().initialize()
         self.postbias = np.random.randn(self.output_size, 1)
     
-    def feedforward(self, a):
-        m = a.shape[1]
-        return super().feedforward(a) + np.dot(self.postbias, np.ones((1, m)))
+    def feedforward(self, x):
+        return super().feedforward(x) + self.postbias
 
     def backprop(self, delta):
         # conveniently the unscaled error deltas are dC/da^l
@@ -354,6 +412,9 @@ class FullyConnectedPostbias(FullyConnected):
         fp = self.activation.derivative(self.z)
         # scaled delta^l = dC/dz^l
         delta = delta * fp
+
+        # compute prev_delta BEFORE updating weights!
+        prev_delta = np.dot(self.weights.transpose(), delta)
 
         # dC/dw^l 
         nabla_w = np.dot(delta, self.prev_a.transpose())
@@ -375,5 +436,5 @@ class FullyConnectedPostbias(FullyConnected):
         self.postbias += postbias_upd
 
         # return the unscaled delta^l-1
-        return np.dot(self.weights.transpose(), delta)
+        return prev_delta
 
