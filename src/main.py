@@ -11,9 +11,10 @@ reg = L2Regularization(3.125 / n_train)
 
 net = modular_network.Network(
     [
-        Convolution((28, 28), (3, 3), 1, tanh(), correct2Dinput = True),
-        Flatten((1, 26, 26)),
-        FullyConnected(26*26, 100, tanh(), reg),
+        #Convolution((28, 28), (3, 3), 1, tanh(), correct2Dinput = True),
+        #Flatten((1, 26, 26)),
+        Flatten((28, 28)),
+        FullyConnected(28*28, 100, tanh(), reg),
         FullyConnected(100, 100, tanh(), reg),
         FullyConnected(100, 10, Softmax(), reg),
     ], 
@@ -25,4 +26,4 @@ net.set_optimizer(optim)
 net.SGD(training_data, 100, 20, test_data, 
         monitor_training_acc=False, 
         monitor_test_acc=True,
-        benchmark=False)
+        )

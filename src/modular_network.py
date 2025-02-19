@@ -22,20 +22,12 @@ class Network:
     
     def feedforward(self, a):
         for layer in self.layers:
-            if self.benchmark:
-                now = time.time()
             a = layer.feedforward(a)
-            if self.benchmark:
-                print("feedforward", type(layer).__name__, "took", time.time() - now)
         return a
 
     def backprop(self, delta):
         for layer in reversed(self.layers):
-            if self.benchmark:
-                now = time.time()
             delta = layer.backprop(delta)
-            if self.benchmark:
-                print("backprop", type(layer).__name__, "took", time.time() - now)
 
     def update_mini_batch(self, mini_batch, n):
         """Update the network's weights and biases by applying
@@ -61,7 +53,7 @@ class Network:
         monitor_test_acc=False,
         monitor_training_cost=False,
         monitor_training_acc=False,
-        benchmark=False):
+        ):
         """Train the neural network using mini-batch stochastic
         gradient descent.  The "training_data" is a list of tuples
         "(x, y)" representing the training inputs and the desired
@@ -70,8 +62,6 @@ class Network:
         network will be evaluated against the test data after each
         epoch, and partial progress printed out.  This is useful for
         tracking progress, but slows things down substantially."""
-        self.benchmark = benchmark
-
         if test_data: 
             n_test = len(test_data)
         
