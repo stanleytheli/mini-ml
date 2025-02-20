@@ -213,8 +213,44 @@ class Convolution_Independent(Layer):
         self.biases += biases_upd
 
         return previous_deltas
-            
+        
 class MaxPool(Layer):
+    def __init__(self, input_shape, pool_shape=(2,2)):
+        """input_shape = (channels, height, width).
+        Or just (height, width). pool_shape = (height, width).
+        Creates a MaxPool layer.
+        """
+        self.correct2Dinput = False
+        if len(input_shape) == 2:
+            self.correct2Dinput = True
+            input_shape = (1, *input_shape)
+
+        self.C, self.H, self.W = input_shape
+        self.pool_h, self.pool_w = pool_shape
+
+    def feedforward(self, x):
+        if self.correct2Dinput:
+            x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
+
+        # x = (M, C, H, W)
+        M = x.shape[0]
+        Hp = self.H // self.pool_h
+        Wp = self.W // self.pool_w
+        x_windowed = x.reshape(M, self.C, Hp, self.pool_h, Wp, self.pool_w)
+        maxes = x_windowed.max(axis=(3, 5)) # (M, C, Hp, Wp)
+
+        max_searcher = maxes.repeat(self.pool_h, axis=2).repeat(self.pool_w, axis=3) # (M, C, H, W)
+        self.where_max = np.equal(x, max_searcher)
+
+        return maxes
+    
+    def backprop(self, delta):
+        # delta = (M, C, Hp, Wp)
+        delta_spread = delta.repeat(self.pool_h, axis=2).repeat(self.pool_w, axis=3)
+        return delta_spread * self.where_max
+
+# DEPRECATED
+class MaxPool_Old(Layer):
     def __init__(self, input_shape, pool_shape=(2,2)):
         """input_shape = (channels, height, width). 
         pool_shape = (height, width).
@@ -264,18 +300,6 @@ class MaxPool(Layer):
             self.max_indices[i] = max_idxs
         
         return pooled
-        """
-        pooled = [0] * m
-        for i in range(m):
-            pool_batch = [0] * self.channels
-            for c in range(self.channels):
-                image = x[i][:, :, c]
-                windows = image.reshape(self.rows//self.pool_shape[0], self.pool_shape[0],
-                            self.cols//self.pool_shape[1], self.pool_shape[1])
-                pool_batch[c] = windows.max((1, 3))
-            pooled[i] = np.stack(pool_batch, axis=2)
-        return pooled
-        """
     
     def backprop(self, delta):
         """Given the unscaled error deltas [in the form of a list of m error 
