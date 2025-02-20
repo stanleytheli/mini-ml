@@ -111,114 +111,14 @@ class Convolution(Layer):
         self.biases += biases_upd
 
         return prev_delta
-
-class Convolution_Independent(Layer):
-    def __init__(self, input_shape, filter_shape, filters, activation, 
-                 regularization=None, correct2Dinput = False):
-        """input_shape = (channels, height, width) or (height, width).
-        IMPORTANT: turn on correct2Dinput=True if input_shape is (height, width).
-        backprop does NOT work with correct2Dinput (so correct2Dinput only works in first layer).
-        filter_shape = (height, width).
-        filters = number of channels/filters. 
-        output shape = (input_channels*filters, height, width).
-        Creates an independent-convolution layer."""
-        if correct2Dinput:
-            input_shape = (1, *input_shape)
-
-        self.input_shape = input_shape
-        self.input_channels = input_shape[0]
-        self.filter_shape = filter_shape
-        self.num_filters = filters
-        self.filters = np.zeros((self.num_filters, *filter_shape))
-        self.biases = np.zeros((self.num_filters,))
-        self.regularization = regularization
-        self.activation = activation
-        self.correct2Dinput = correct2Dinput
-
-        self.initialize()
-
-    def set_optimizer(self, optimizer):
-        self.optimizer = optimizer
-
-    def initialize(self):
-        self.filters = np.random.randn(*self.filters.shape) / np.sqrt(np.prod(self.filter_shape))
-        self.biases = np.random.randn(*self.biases.shape)
-    
-    def feedforward(self, x):
-        """Given an ndarray x of shape (batch, channels, height, width),
-        returns convolutions of shape (batch, channels*filters, height', width')
-        where height' = height - filter_height + 1 and analogously for width"""
-        if self.correct2Dinput:
-            x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
-
-        m, C, H, W = x.shape
-        F = self.num_filters
-        h_f, w_f = self.filter_shape
-        Hp, Wp = H - h_f + 1, W - w_f + 1
-
-        # reshaped filters for batching purposes
-        filters_bar = self.filters.reshape(F, 1, 1, h_f, w_f) 
-
-        self.prev_a = x # (m, C, H, W)
-        self.z = np.zeros((m, C * F, Hp, Wp)) # (m, CF, H, W)
-
-        for f in range(F):
-            self.z[:, f::C] = sci.correlate(x, filters_bar[f], mode="valid") + self.biases[f]
-            # indexing system: input channel c and filter f --> i = c*(n_f) + f
-
-        self.a = self.activation.fn(self.z)
-
-        return self.a
-
-    def backprop(self, delta):
-        """Given an ndarray of error deltas of shape 
-        (batch, channels*filters, height', width'), updates
-        learnables and then returns the previous layer's
-        unscaled error deltas in shape (batch, channels, height, width)"""
-        C = self.input_channels
-        F = self.num_filters
-        m, _, Hp, Wp = delta.shape
-        H, W = self.input_shape[1:]
-        h_f, w_f = self.filter_shape
-
-        # scaled deltas
-        delta = delta * self.activation.derivative(self.z)
-        # reshaped variables for batching purposes
-        delta_bar = delta.reshape((m, C, F, Hp, Wp))
-        filters_bar = self.filters.reshape(F, 1, 1, h_f, w_f)
-        # filters, reflected across image axes
-        filters_bar_R = np.flip(filters_bar, axis=(3, 4)) # (F, 1, 1, h_f, w_f)
-
-        # unscaled error deltas of previous layer
-        previous_deltas = np.zeros((m, C, F, H, W))
-        for f in range(F):
-            previous_deltas[:, :, f] = sci.correlate(filters_bar_R[f], delta_bar[:, :, f], mode="full")
-            # (1, 1, h_f, w_f) full_corr (m, C, H', W') --> (m, C, H, W)
-        previous_deltas = np.sum(previous_deltas, axis=2) # (m, C, H, W)
-
-        # dC/dw
-        nabla_w = np.zeros(self.filters.shape) # (F, h_f, w_f)
-        for f in range(F):
-            nabla_w[f] = sci.correlate(self.prev_a, delta_bar[:, :, f], mode="valid")[0, 0]
-            # (m, C, H, W) corr (m, C, H', W') --> (1, 1, h_f, w_f)
-        # dC/db
-        nabla_b = np.sum(delta_bar, axis=(0, 1, 3, 4)) # (F,)
-
-        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
-        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
-
-        # update learnables
-        weights_upd, biases_upd = self.optimizer.fn([nabla_w, nabla_b])
-        self.filters += weights_upd
-        self.biases += biases_upd
-
-        return previous_deltas
         
 class MaxPool(Layer):
     def __init__(self, input_shape, pool_shape=(2,2)):
         """input_shape = (channels, height, width).
         Or just (height, width). pool_shape = (height, width).
-        Creates a MaxPool layer.
+        Creates a MaxPool layer. 
+        IMPORTANT: If 2D input, and there is a Flatten
+        layer, make sure that the Flatten layer has 1 as its channels count. 
         """
         self.correct2Dinput = False
         if len(input_shape) == 2:
@@ -245,87 +145,8 @@ class MaxPool(Layer):
         return maxes
     
     def backprop(self, delta):
-        # delta = (M, C, Hp, Wp)
         delta_spread = delta.repeat(self.pool_h, axis=2).repeat(self.pool_w, axis=3)
         return delta_spread * self.where_max
-
-# DEPRECATED
-class MaxPool_Old(Layer):
-    def __init__(self, input_shape, pool_shape=(2,2)):
-        """input_shape = (channels, height, width). 
-        pool_shape = (height, width).
-        Creates a MaxPool layer. """
-        self.input_shape = input_shape
-        self.pool_shape = pool_shape
-
-        if len(input_shape) == 2:
-            self.mode_2d = True
-
-    def feedforward(self, x):
-        """Given a list of m training examples which have shape (channels, height, width),
-        calculates their MaxPool and returns in the form of a list of m tensors 
-        with shape (channels/stride, height/stride, width)."""
-        # x is a list of m images each of shape(c, h, w)
-        m = len(x)
-
-        C, H, W = self.input_shape
-        pool_h, pool_w = self.pool_shape
-
-        h_steps = H // pool_h
-        w_steps = W // pool_w
-
-        # Is there a better way to keep track of max values for backprop while
-        # avoiding python for loops?
-        pooled = [0] * m
-        self.max_indices = [0] * m
-
-        for i in range(m):
-            pooled_image = np.zeros((C, h_steps, w_steps))
-            max_idxs = np.zeros((C, h_steps, w_steps, 2), dtype=int)
-
-            for h in range(h_steps):
-                for w in range(w_steps):
-                    h_start, h_end = h * pool_h, (h + 1) * pool_h
-                    w_start, w_end = w * pool_w, (w + 1) * pool_w
-                    window = x[i][:, h_start:h_end, w_start:w_end]
-
-                    max_vals = window.max(axis=(1,2))
-                    pooled_image[:, h, w] = max_vals
-
-                    for c in range(C):
-                        max_idx = np.argwhere(window[c] == max_vals[c])[0]
-                        max_idxs[c, h, w] = [h_start + max_idx[0], w_start + max_idx[1]]
-
-            pooled[i] = pooled_image
-            self.max_indices[i] = max_idxs
-        
-        return pooled
-    
-    def backprop(self, delta):
-        """Given the unscaled error deltas [in the form of a list of m error 
-        deltas which each have shape (channels, height/stride, width/stride)] reshapes 
-        them to be compatible with the layer before the MaxPool."""
-        m = len(delta)
-
-        C, H, W = self.input_shape
-        pool_h, pool_w = self.pool_shape
-
-        h_steps = H // pool_h
-        w_steps = W // pool_w
-
-        deltas_list = [0] * m
-        for i in range(m):
-            reshaped_deltas = np.zeros((C, H, W))
-
-            for h in range(h_steps):
-                for w in range(w_steps):
-                    for c in range(C):
-                        h_idx, w_idx = self.max_indices[i][c, h, w]
-                        reshaped_deltas[c, h_idx, w_idx] = delta[i][c, h, w]
-
-            deltas_list[i] = reshaped_deltas
-        
-        return deltas_list
 
 class Flatten(Layer):
     def __init__(self, input_shape):
