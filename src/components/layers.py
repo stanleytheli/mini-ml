@@ -97,6 +97,7 @@ class Convolution(Layer):
         nabla_w = np.zeros((F, C, h_f, w_f))
         for f in range(F):
             # (M, C, H, W) corr (M, 1, Hp, Wp) --> (1, C, h_f, w_f)
+            
             nabla_w[f] = sci.correlate(self.prev_a, delta_bar[:, f], mode="valid")[0]
 
         # dL/db
