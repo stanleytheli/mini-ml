@@ -25,7 +25,7 @@ net = modular_network.Network(
 
 optim = SGD_momentum_optimizer(0.005, 20, 0.95)
 net.set_optimizer(optim)
-net.SGD(training_data, 100, 20, test_data, 
+net.SGD(training_data, 100, 20, validation_data, 
         monitor_training_acc=False, 
         monitor_test_acc=True,
         )
