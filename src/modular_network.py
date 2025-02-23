@@ -100,7 +100,7 @@ class Network:
                 accuracy = self.accuracy(test_data)
                 evaluation_accuracy.append(accuracy)
                 print("Accuracy on test data: {} / {}".format(
-                    self.accuracy(test_data), n_test))
+                    accuracy, n_test))
 
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
