@@ -12,6 +12,7 @@ class Network:
         self.num_layers = len(layers)
         self.layers = layers
         self.cost = cost
+        self.mode = Mode.TRAIN
     
     def set_optimizer(self, optimizer):
         for layer in self.layers:
@@ -19,6 +20,11 @@ class Network:
             # an optimizer factory, which is why get_optimizer() exists. 
             # this choice was made to allow compartmentalization of layers.
             layer.set_optimizer(optimizer.get_optimizer())
+    
+    def set_mode(self, mode):
+        self.mode = mode
+        for layer in self.layers:
+            layer.set_mode(mode)
     
     def feedforward(self, a):
         for layer in self.layers:
@@ -62,6 +68,8 @@ class Network:
         network will be evaluated against the test data after each
         epoch, and partial progress printed out.  This is useful for
         tracking progress, but slows things down substantially."""
+        self.set_mode(Mode.TRAIN)
+
         if test_data: 
             n_test = len(test_data)
         
@@ -123,14 +131,18 @@ class Network:
         representations speeds things up.  More details on the
         representations can be found in
         mnist_loader.load_data_wrapper.
-
         """
+        prev_mode = self.mode
+        self.set_mode(Mode.TEST)
+        
         if convert:
             results = [(np.argmax(self.feedforward(np.array([x]))), np.argmax(y))
                        for (x, y) in data]
         else:
             results = [(np.argmax(self.feedforward(np.array([x]))), y)
                         for (x, y) in data]
+            
+        self.set_mode(prev_mode)
         return sum(int(x == y) for (x, y) in results)
     
     # DEPRECATED --- DOES NOT WORK

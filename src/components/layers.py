@@ -4,10 +4,12 @@ from utils import *
 
 class Layer:
     def __init__(self):
-        self.trainable = True
+        self.mode = Mode.TRAIN
         pass
     def set_optimizer(self, optimizer):
-        pass
+        self.optimizer = optimizer
+    def set_mode(self, mode):
+        self.mode = mode
     def initialize(self):
         pass
     def feedforward(self, x):
@@ -39,9 +41,6 @@ class Convolution(Layer):
         self.correct2Dinput = correct2Dinput
 
         self.initialize()
-
-    def set_optimizer(self, optimizer):
-        self.optimizer = optimizer
 
     def initialize(self):
         self.filters = np.random.randn(*self.filters.shape) / np.sqrt(np.prod(self.filter_shape))
@@ -93,23 +92,24 @@ class Convolution(Layer):
                 prev_delta_m += sci.correlate(filter_R, delta_bar[m_i, f], mode="full")
             prev_delta[m_i] = prev_delta_m
 
-        # dL/dk_f 
-        nabla_w = np.zeros((F, C, h_f, w_f))
-        for f in range(F):
-            # (M, C, H, W) corr (M, 1, Hp, Wp) --> (1, C, h_f, w_f)
-            
-            nabla_w[f] = sci.correlate(self.prev_a, delta_bar[:, f], mode="valid")[0]
+        if self.mode == Mode.TRAIN:
+            # dL/dk_f 
+            nabla_w = np.zeros((F, C, h_f, w_f))
+            for f in range(F):
+                # (M, C, H, W) corr (M, 1, Hp, Wp) --> (1, C, h_f, w_f)
+                
+                nabla_w[f] = sci.correlate(self.prev_a, delta_bar[:, f], mode="valid")[0]
 
-        # dL/db
-        nabla_b = np.sum(delta, axis=(0, 2, 3))
+            # dL/db
+            nabla_b = np.sum(delta, axis=(0, 2, 3))
 
-        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
-        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
+            nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+            nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
-        # update learnables
-        weights_upd, biases_upd = self.optimizer.fn([nabla_w, nabla_b])
-        self.filters += weights_upd
-        self.biases += biases_upd
+            # update learnables
+            weights_upd, biases_upd = self.optimizer.fn([nabla_w, nabla_b])
+            self.filters += weights_upd
+            self.biases += biases_upd
 
         return prev_delta
         
@@ -182,9 +182,6 @@ class FullyConnected(Layer):
         self.regularization = regularization
 
         self.initialize()
-    
-    def set_optimizer(self, optimizer):
-        self.optimizer = optimizer
 
     def initialize(self):
         """Initializes the weights and biases of this layer to be Gaussian random."""
@@ -213,21 +210,22 @@ class FullyConnected(Layer):
         # compute prev_delta BEFORE updating weights!
         prev_delta = np.dot(self.weights.transpose(), delta)
 
-        # dC/dw^l 
-        nabla_w = np.dot(delta, self.prev_a.transpose())
-        if self.regularization:
-            nabla_w += self.regularization.derivative(self.weights)
-        # dC/db^l
-        nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
+        if self.mode == Mode.TRAIN:
+            # dC/dw^l 
+            nabla_w = np.dot(delta, self.prev_a.transpose())
+            if self.regularization:
+                nabla_w += self.regularization.derivative(self.weights)
+            # dC/db^l
+            nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
 
-        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
-        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
+            nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+            nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
-        # update learnables
-        weights_upd, bias_upd = self.optimizer.fn([nabla_w, nabla_b])
+            # update learnables
+            weights_upd, bias_upd = self.optimizer.fn([nabla_w, nabla_b])
 
-        self.weights += weights_upd
-        self.bias += bias_upd
+            self.weights += weights_upd
+            self.bias += bias_upd
 
         # return the unscaled delta^l-1
         return prev_delta
