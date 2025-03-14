@@ -1,4 +1,5 @@
 import numpy as np
+from utils import *
 
 # Factory class
 class SGD_optimizer:
@@ -49,4 +50,33 @@ class SGD_momentum_optimizer:
             else:
                 self.v = [-(self.eta/self.m)*nabla for nabla in learnables]
             return self.v
+
+class RMSProp_optimizer:
+    def __init__(self, eta, m, beta):
+        self.eta = eta
+        self.m = m
+        self.beta = beta
+
+    def get_optimizer(self):
+        return self._optimizer(self.eta, self.m, self.beta)
+    
+    class _optimizer:
+        def __init__(self, eta, m, beta):
+            self.eta = eta
+            self.m = m
+            self.beta = beta
+
+            self.v = None
+
+        def fn(self, learnables):
+            # Exponentially decaying moving average
+            if self.v is not None:
+                self.v = [self.beta * v_i + (1 - self.beta) * np.square(nabla_i)
+                          for v_i, nabla_i in zip(self.v, learnables)]
+            else:
+                self.v = [(1 - self.beta) * np.square(nabla) for nabla in learnables]
+
+            updates = [ - (self.eta/self.m)*(nabla_i/(np.sqrt(v_i) + epsilon))
+                       for v_i, nabla_i in zip(self.v, learnables)]
+            return updates
 
