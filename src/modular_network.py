@@ -35,7 +35,7 @@ class Network:
         for layer in reversed(self.layers):
             delta = layer.backprop(delta)
 
-    def update_mini_batch(self, mini_batch, n):
+    def update_mini_batch(self, mini_batch, n, data_augmentation):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
         The "mini_batch" is a list of tuples "(x, y)", and "eta"
@@ -46,6 +46,9 @@ class Network:
         # We concatenate Y into a matrix
         Y = np.concatenate([pair[1] for pair in mini_batch], axis=1)
 
+        if data_augmentation is not None:
+            X = data_augmentation.fn(X)
+
         # a^L
         a_L = self.feedforward(X)
         # unscaled delta^L
@@ -55,6 +58,7 @@ class Network:
 
     def SGD(self, training_data, epochs, mini_batch_size, 
         test_data=None,
+        data_augmentation = None,
         monitor_test_cost=False,
         monitor_test_acc=False,
         monitor_training_cost=False,
@@ -86,7 +90,7 @@ class Network:
                 for k in range(0, n, mini_batch_size)]
             
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, len(training_data))
+                self.update_mini_batch(mini_batch, len(training_data), data_augmentation)
             
             time2 = time.time()
 
