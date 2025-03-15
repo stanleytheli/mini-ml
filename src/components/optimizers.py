@@ -80,3 +80,42 @@ class RMSProp_optimizer:
                        for v_i, nabla_i in zip(self.v, learnables)]
             return updates
 
+class Adam_optimizer:
+    def __init__(self, eta, m, beta_1, beta_2):
+        self.eta = eta
+        self.m = m
+        self.beta_1 = beta_1
+        self.beta_2 = beta_2
+
+    def get_optimizer(self):
+        return self._optimizer(self.eta, self.m, self.beta_1, self.beta_2)
+    
+    class _optimizer():
+        def __init__(self, eta, m, beta_1, beta_2):
+            self.eta = eta
+            self.m = m
+            self.beta_1 = beta_1
+            self.beta_2 = beta_2
+
+            self.a = None
+            self.v = None
+            self.t = 0
+
+        def fn(self, learnables):
+            self.t += 1
+
+            if self.a is not None:
+                self.a = [self.beta_1 * a_i + (1 - self.beta_1) * nabla_i 
+                          for a_i, nabla_i in zip(self.a, learnables)]
+            else:
+                self.a = [(1 - self.beta_1) * nabla for nabla in learnables]
+            
+            if self.v is not None:
+                self.v = [self.beta_2 * v_i + (1 - self.beta_2) * np.square(nabla_i)
+                          for v_i, nabla_i in zip(self.v, learnables)]
+            else:
+                self.v = [(1 - self.beta_2) * np.square(nabla) for nabla in learnables]
+
+            bias_correction = np.sqrt(1 - np.power(self.beta_2, self.t))/(1 - np.power(self.beta_1, self.t))
+            return [- (self.eta/self.m) * bias_correction * (a_i/(np.sqrt(v_i) + epsilon))
+                    for a_i, v_i in zip(self.a, self.v)]
