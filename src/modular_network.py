@@ -8,12 +8,15 @@ from components import *
 
 class Network:
 
-    def __init__(self, layers, cost):
+    def __init__(self, layers, cost = None):
         self.num_layers = len(layers)
         self.layers = layers
         self.cost = cost
         self.mode = Mode.TRAIN
     
+    def set_cost(self, cost):
+        self.cost = cost
+
     def set_optimizer(self, optimizer):
         for layer in self.layers:
             # the optimizer object passed into the modular network is more like
@@ -149,8 +152,7 @@ class Network:
         self.set_mode(prev_mode)
         return sum(int(x == y) for (x, y) in results)
     
-    # DEPRECATED --- DOES NOT WORK
-    def total_cost(self, data, lmbda, convert=False):
+    def total_cost(self, data, convert=False, average=True):
         """Return the total cost for the data set ``data``.  The flag
         ``convert`` should be set to False if the data set is the
         training data (the usual case), and to True if the data set is
@@ -159,11 +161,14 @@ class Network:
         """
         cost = 0.0
         for x, y in data:
-            a = self.feedforward(x)
+            a = self.feedforward(np.array([x]))
             if convert: 
                 y = vectorized_result(y)
-            cost += self.cost.fn(a, y)/len(data)
-        #cost += 0.5*(lmbda/len(data))*sum(self.regularization.cost(w) for w in self.weights)
+            cost += self.cost.fn(a, y)
+        for layer in self.layers:
+            cost += layer.get_reg_loss()
+        if average:
+            cost = cost / len(data)
         return cost
 
     def cost_derivative(self, output_activations, y):
