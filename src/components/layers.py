@@ -1,13 +1,16 @@
 import numpy as np
 import scipy.signal as sci
 from utils import * 
+from .activations import ActivationFunction
+from .optimizers import Optimizer
+from .regularizations import Regularization
 
 class Layer:
     def __init__(self):
         """Create a Layer."""
         self.mode = Mode.TRAIN
         pass
-    def set_optimizer(self, optimizer):
+    def set_optimizer(self, optimizer: Optimizer):
         """Set this Layer's optimizer to an Optimizer object
         (NOT and Optimizer factory class)."""
         self.optimizer = optimizer
@@ -36,8 +39,8 @@ class Layer:
         pass
 
 class Convolution(Layer):
-    def __init__(self, input_shape, filter_shape, filters, activation, 
-                 regularization=None, correct2Dinput = False):
+    def __init__(self, input_shape, filter_shape, filters, activation: ActivationFunction, 
+                 regularization: Regularization = None, correct2Dinput = False):
         """input_shape = (channels, height, width) or (height, width).
         IMPORTANT: turn on correct2Dinput=True if input_shape is (height, width).
         backprop does NOT work with correct2Dinput (so correct2Dinput only works in first layer).
@@ -205,7 +208,9 @@ class Flatten(Layer):
         return np.reshape(delta.T, (self.m, *self.input_shape))
 
 class FullyConnected(Layer):
-    def __init__(self, input_size, output_size, activation, regularization):
+    def __init__(self, input_size, output_size, 
+                 activation: ActivationFunction,
+                 regularization: Regularization):
         """Creates a Fully Connected layer."""
         self.input_size = input_size
         self.output_size = output_size
@@ -278,7 +283,8 @@ class FullyConnected(Layer):
 
 
 class FullyConnectedPostbias(FullyConnected):
-    def __init__(self, input_size, output_size, activation, regularization):
+    def __init__(self, input_size, output_size, activation: ActivationFunction,
+                  regularization: Regularization):
         """Much like a FullyConnected layer, but with another set of biases 
         applied *after* the activation function."""
         self.postbias = np.zeros((output_size, 1))
