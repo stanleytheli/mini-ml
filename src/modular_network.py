@@ -59,9 +59,10 @@ class Network:
         # backprop
         self.backprop(delta)
 
-    def SGD(self, training_data, epochs, mini_batch_size, 
+    def train(self, training_data, epochs, mini_batch_size, 
         test_data=None,
         data_augmentation = None,
+        n_epochs_monitor=1,
         monitor_test_cost=False,
         monitor_test_acc=False,
         monitor_training_cost=False,
@@ -83,6 +84,9 @@ class Network:
         n = len(training_data)        
         test_cost, test_acc = [], []
         training_cost, training_acc = [], []
+        times = []
+
+        curr_time = 0
 
         for j in range(epochs):
             time1 = time.time()
@@ -96,32 +100,36 @@ class Network:
                 self.update_mini_batch(mini_batch, len(training_data), data_augmentation)
             
             time2 = time.time()
-
             print(f"Epoch {j+1} training complete, took {time2 - time1} seconds")
-            if monitor_training_cost:
-                cost = self.total_cost(training_data[:10000])
-                training_cost.append(cost)
-                print("Cost on training data: {}".format(cost))
-            if monitor_training_acc:
-                accuracy = self.accuracy(training_data[:10000], convert=True)
-                training_acc.append(accuracy)
-                print("Accuracy on training data: {} / {}".format(
-                    accuracy, 10000))
-            if monitor_test_cost:
-                cost = self.total_cost(test_data, convert=True)
-                test_cost.append(cost)
-                print("Cost on test data: {}".format(cost))
-            if monitor_test_acc:
-                accuracy = self.accuracy(test_data)
-                test_acc.append(accuracy)
-                print("Accuracy on test data: {} / {}".format(
-                    accuracy, n_test))
+            curr_time += time2 - time1
+            
+            if j % n_epochs_monitor == 0:
+                times.append(curr_time)
+                if monitor_training_cost:
+                    cost = self.total_cost(training_data[:10000])
+                    training_cost.append(cost)
+                    print("Cost on training data: {}".format(cost))
+                if monitor_training_acc:
+                    accuracy = self.accuracy(training_data[:10000], convert=True)
+                    training_acc.append(accuracy)
+                    print("Accuracy on training data: {} / {}".format(
+                        accuracy, 10000))
+                if monitor_test_cost:
+                    cost = self.total_cost(test_data, convert=True)
+                    test_cost.append(cost)
+                    print("Cost on test data: {}".format(cost))
+                if monitor_test_acc:
+                    accuracy = self.accuracy(test_data)
+                    test_acc.append(accuracy)
+                    print("Accuracy on test data: {} / {}".format(
+                        accuracy, n_test))
 
         return {"training_acc": training_acc,
                 "training_cost": training_cost,
                 "test_acc": test_acc,
-                "test_cost": test_cost}
-    
+                "test_cost": test_cost,
+                "times": times}
+
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
         network outputs the correct result. The neural network's
