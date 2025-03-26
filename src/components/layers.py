@@ -18,6 +18,10 @@ class Layer:
         return delta
     def get_reg_loss(self):
         return 0
+    def save_data(self):
+        return {}
+    def load_data(self, data):
+        pass
 
 class Convolution(Layer):
     def __init__(self, input_shape, filter_shape, filters, activation, 
@@ -100,7 +104,7 @@ class Convolution(Layer):
             for f in range(F):
                 # (M, C, H, W) corr (M, 1, Hp, Wp) --> (1, C, h_f, w_f)
                 nabla_w[f] = sci.correlate(self.prev_a, delta_bar[:, f], mode="valid")[0]
-            if self.regularization is not None:
+            if self.regularization:
                 nabla_w += self.regularization.derivative(self.filters)
 
             # dL/db
@@ -120,6 +124,15 @@ class Convolution(Layer):
         if self.regularization:
             return self.regularization.cost(self.filters)
         return 0
+    
+    def save_data(self):
+        return {"filters": self.filters.tolist(),
+                "biases": self.biases.tolist()}
+    
+    def load_data(self, data):
+        self.filters = np.array(data["filters"])
+        self.biases = np.array(data["biases"])
+
         
 class MaxPool(Layer):
     def __init__(self, input_shape, pool_shape=(2,2)):
@@ -242,6 +255,14 @@ class FullyConnected(Layer):
         if self.regularization:
             return self.regularization.cost(self.weights)
         return 0
+    
+    def save_data(self):
+        return {"weights": self.weights.tolist(),
+                "bias": self.bias.tolist()}
+    
+    def load_data(self, data):
+        self.weights = np.array(data["weights"])
+        self.bias = np.array(data["bias"])
 
 
 class FullyConnectedPostbias(FullyConnected):
@@ -291,4 +312,15 @@ class FullyConnectedPostbias(FullyConnected):
 
         # return the unscaled delta^l-1
         return prev_delta
+
+    
+    def save_data(self):
+        return {"weights": self.weights.tolist(),
+                "bias": self.bias.tolist(),
+                "postbias": self.postbias.tolist()}
+    
+    def load_data(self, data):
+        self.weights = np.array(data["weights"])
+        self.bias = np.array(data["bias"])
+        self.postbias = np.array(data["postbias"])
 

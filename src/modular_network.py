@@ -81,8 +81,8 @@ class Network:
             n_test = len(test_data)
         
         n = len(training_data)        
-        evaluation_cost, evaluation_accuracy = [], []
-        training_cost, training_accuracy = [], []
+        test_cost, test_acc = [], []
+        training_cost, training_acc = [], []
 
         for j in range(epochs):
             time1 = time.time()
@@ -104,19 +104,24 @@ class Network:
                 print("Cost on training data: {}".format(cost))
             if monitor_training_acc:
                 accuracy = self.accuracy(training_data[:10000], convert=True)
-                training_accuracy.append(accuracy)
+                training_acc.append(accuracy)
                 print("Accuracy on training data: {} / {}".format(
                     accuracy, 10000))
             if monitor_test_cost:
                 cost = self.total_cost(test_data, convert=True)
-                evaluation_cost.append(cost)
+                test_cost.append(cost)
                 print("Cost on test data: {}".format(cost))
             if monitor_test_acc:
                 accuracy = self.accuracy(test_data)
-                evaluation_accuracy.append(accuracy)
+                test_acc.append(accuracy)
                 print("Accuracy on test data: {} / {}".format(
                     accuracy, n_test))
 
+        return {"training_acc": training_acc,
+                "training_cost": training_cost,
+                "test_acc": test_acc,
+                "test_cost": test_cost}
+    
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
         network outputs the correct result. The neural network's
@@ -179,35 +184,29 @@ class Network:
     #TODO
     ### Saving a Network
     def save(self, filename):
-        """Save the neural network to the file ``filename``."""
-        data = {"sizes": self.sizes,
-                "activations": [str(func.__name__) for func in self.activations],
-                "weights": [w.tolist() for w in self.weights],
-                "biases": [b.tolist() for b in self.biases],
-                "cost": str(self.cost.__name__),
-                "regularization": str(self.regularization.__name__)}
-        
+        """Save all the  network's learnable parameters
+          to the file ``filename``. 
+          Architecture is not (explicitly) saved!"""
+
+        data = {}
+        for i, layer in enumerate(self.layers):
+            data[str(i)] = layer.save_data()
+
         f = open(filename, "w")
         json.dump(data, f)
         f.close()
 
     #TODO
     #### Loading a Network
-    def load(filename):
-        """Load a neural network from the file ``filename``.  Returns an
-        instance of Network.
-
+    def load(self, filename):
+        """Load the parameters from ``filename`` onto this network.
+        Requires this network to have the same architecture as
+        the saved network. 
         """
         f = open(filename, "r")
         data = json.load(f)
         f.close()
-        cost = getattr(sys.modules[__name__], data["cost"])
-        regularization = getattr(sys.modules[__name__], data["regularization"])
-        activations = [getattr(sys.modules[__name__], func_name) for func_name in data["activations"]]
-        net = Network(data["sizes"], 
-                      activations,
-                      cost=cost, 
-                      regularization=regularization)
-        net.weights = [np.array(w) for w in data["weights"]]
-        net.biases = [np.array(b) for b in data["biases"]]
-        return net
+
+        for i, layer in enumerate(self.layers):
+            layer.load_data(data[str(i)])
+
