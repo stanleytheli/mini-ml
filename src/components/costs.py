@@ -1,7 +1,16 @@
 import numpy as np
 from utils import epsilon
 
-class QuadraticCost:
+class CostFunction:
+    def fn(self, a, y):
+        """Return the cost associated with an output ``a`` and the 
+        desired output ``y``."""
+        return 0
+    def derivative(self, a, y):
+        """Return the derivative with respect to the activation."""
+        return 0
+
+class QuadraticCost(CostFunction):
     def fn(self, a, y):
         """Return the cost associated with an output ``a`` and the 
         desired output ``y``."""
@@ -11,7 +20,7 @@ class QuadraticCost:
         """Return the derivative with respect to the activation."""
         return (a - y)
 
-class BinaryCrossEntropyCost:
+class BinaryCrossEntropyCost(CostFunction):
     def fn(self, a, y):
         """Return the cost associated with an output ``a`` and desired output
         ``y``.  Note that np.nan_to_num is used to ensure numerical

@@ -8,16 +8,16 @@ from components import *
 
 class Network:
 
-    def __init__(self, layers, cost = None):
+    def __init__(self, layers, cost: CostFunction = None):
         self.num_layers = len(layers)
         self.layers = layers
         self.cost = cost
         self.mode = Mode.TRAIN
     
-    def set_cost(self, cost):
+    def set_cost(self, cost: CostFunction):
         self.cost = cost
 
-    def set_optimizer(self, optimizer):
+    def set_optimizer(self, optimizer: Optimizer):
         for layer in self.layers:
             # the optimizer object passed into the modular network is more like
             # an optimizer factory, which is why get_optimizer() exists. 
@@ -38,7 +38,7 @@ class Network:
         for layer in reversed(self.layers):
             delta = layer.backprop(delta)
 
-    def update_mini_batch(self, mini_batch, n, data_augmentation):
+    def update_mini_batch(self, mini_batch, n, data_augmentation: DataAugmentation):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
         The "mini_batch" is a list of tuples "(x, y)", and "eta"
@@ -61,7 +61,7 @@ class Network:
 
     def train(self, training_data, epochs, mini_batch_size, 
         test_data=None,
-        data_augmentation = None,
+        data_augmentation: DataAugmentation = None,
         n_epochs_monitor=1,
         monitor_test_cost=False,
         monitor_test_acc=False,

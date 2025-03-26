@@ -1,8 +1,22 @@
 import numpy as np
 from utils import *
 
-# Factory class
-class SGD_optimizer:
+class Optimizer():
+    def __init__(self):
+        """Create an Optimizer factory class."""
+        pass
+    def get_optimizer(self):
+        """Get an Optimizer object."""
+        return self._optimizer()
+    class _optimizer:
+        def __init__(self):
+            pass
+        def fn(self, learnables):
+            """Calculate parameter updates given ``learnables``, a 
+            list of ndarrays representing all learnable parameters."""
+            return [np.zeros(nabla.shape) for nabla in learnables]
+
+class SGD_optimizer(Optimizer):
     def __init__(self, eta, m):
         """eta: learning rate; m: minibatch size"""
         self.eta = eta
@@ -21,7 +35,7 @@ class SGD_optimizer:
             wrt. the learnable parameters, returns the updates in the same form."""
             return [-(self.eta/self.m)*nabla for nabla in learnables]
 
-class SGD_momentum_optimizer:
+class SGD_momentum_optimizer(Optimizer):
     def __init__(self, eta, m, beta):
         """eta: learning rate; m: minibatch size; beta: momentum parameter"""
         self.eta = eta
@@ -51,7 +65,7 @@ class SGD_momentum_optimizer:
                 self.v = [-(self.eta/self.m)*nabla for nabla in learnables]
             return self.v
 
-class RMSProp_optimizer:
+class RMSProp_optimizer(Optimizer):
     def __init__(self, eta, m, beta):
         self.eta = eta
         self.m = m
@@ -80,7 +94,7 @@ class RMSProp_optimizer:
                        for v_i, nabla_i in zip(self.v, learnables)]
             return updates
 
-class Adam_optimizer:
+class Adam_optimizer(Optimizer):
     def __init__(self, eta, m, beta_1, beta_2):
         self.eta = eta
         self.m = m

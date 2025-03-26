@@ -1,5 +1,18 @@
 import numpy as np
 
+class Regularization:
+    def __init__(self):
+        """Create a regularization."""
+        pass
+    def cost(self, w):
+        """Returns the cost associated with regularization
+        on learnable parameters ``w``."""
+        return 0
+    def derivative(self, w):
+        """Returns the derivative of the regularization cost
+        at learnable parameters ``w``"""
+        return np.zeros(w.shape)
+
 class L1Regularization:
     def __init__(self, lmbda):
         self.lmbda = lmbda

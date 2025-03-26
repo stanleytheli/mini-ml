@@ -4,13 +4,17 @@ from utils import *
 
 class DataAugmentation:
     def __init__(self):
+        """Create a Data Augmentation."""
         pass
     def fn(self, x):
+        """Apply this Data Augmentation to the minibatch ``x``."""
         return x
 
 class CombinedAug(DataAugmentation):
     def __init__(self, aug_list):
-        """Creates a sequential data augmentation."""
+        """Creates a sequential data augmentation.
+        Augmentations processed in the same order as the list,
+        e.g. first element is applied first."""
         self.aug_list = aug_list
     
     def fn(self, x):
@@ -37,14 +41,15 @@ class RandUniformAug(DataAugmentation):
         return x + np.random.uniform(self.min, self.max, x.shape)
     
 class TranslationAug(DataAugmentation):
-    def __init__(self, hMin, hMax, wMin, wMax):
+    def __init__(self, hMin, hMax, wMin, wMax, padding = 0):
         """Translates the image. Translation in the height and width
         axes are uniform random between their min and maxes (inclusive)
-        and applied per minibatch."""
+        and applied per minibatch. Pads with value ``padding``."""
         self.hMin = hMin
         self.hMax = hMax
         self.wMin = wMin
         self.wMax = wMax
+        self.padding = padding
     
     def fn(self, x):
         delta_h = np.random.randint(self.hMin, self.hMax + 1)
@@ -52,8 +57,8 @@ class TranslationAug(DataAugmentation):
         
         m, h, w = x.shape
 
-        padding_h = np.zeros((m, abs(delta_h), w))
-        padding_w = np.zeros((m, h, abs(delta_w)))
+        padding_h = np.ones((m, abs(delta_h), w)) * self.padding
+        padding_w = np.ones((m, h, abs(delta_w))) * self.padding
 
         # delta_w and delta_h must have opposite sign convention if
         # we want them to represent rightward and upward movement respectively

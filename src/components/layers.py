@@ -4,23 +4,35 @@ from utils import *
 
 class Layer:
     def __init__(self):
+        """Create a Layer."""
         self.mode = Mode.TRAIN
         pass
     def set_optimizer(self, optimizer):
+        """Set this Layer's optimizer to an Optimizer object
+        (NOT and Optimizer factory class)."""
         self.optimizer = optimizer
     def set_mode(self, mode):
+        """Set this Layer's mode."""
         self.mode = mode
     def initialize(self):
+        """Initialize this Layer's learnable parameters."""
         pass
     def feedforward(self, x):
+        """Forward propagate a minibatch ``x``."""
         return x
     def backprop(self, delta):
+        """Backward propagate a minibatch of error deltas ``delta``,
+        updating learnable parameters on the way if the network is in
+        ``Mode.TRAIN``."""
         return delta
     def get_reg_loss(self):
+        """Get the cost associated with regularization on this Layer."""
         return 0
     def save_data(self):
+        """Get this Layer's learnable parameters in the form of a dictionary."""
         return {}
     def load_data(self, data):
+        """Load this Layer's learnable parameters from the dictionary ``data``."""
         pass
 
 class Convolution(Layer):
