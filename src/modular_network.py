@@ -181,8 +181,6 @@ class Network:
         \partial a for the output activations."""
         return (output_activations-y)
     
-    #TODO
-    ### Saving a Network
     def save(self, filename):
         """Save all the  network's learnable parameters
           to the file ``filename``. 
@@ -196,8 +194,6 @@ class Network:
         json.dump(data, f)
         f.close()
 
-    #TODO
-    #### Loading a Network
     def load(self, filename):
         """Load the parameters from ``filename`` onto this network.
         Requires this network to have the same architecture as
