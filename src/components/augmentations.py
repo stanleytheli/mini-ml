@@ -10,6 +10,7 @@ class DataAugmentation:
 
 class CombinedAug(DataAugmentation):
     def __init__(self, aug_list):
+        """Creates a sequential data augmentation."""
         self.aug_list = aug_list
     
     def fn(self, x):
@@ -19,6 +20,7 @@ class CombinedAug(DataAugmentation):
 
 class RandnAug(DataAugmentation):
     def __init__(self, mean = 0, var = 1):
+        """Adds i.i.d. normal random noise to each pixel."""
         self.mean = mean
         self.var = var
     
@@ -27,8 +29,47 @@ class RandnAug(DataAugmentation):
 
 class RandUniformAug(DataAugmentation):
     def __init__(self, min = 0, max = 1):
+        """Adds i.i.d. uniform random noise to each pixel."""
         self.min = min
         self.max = max
     
     def fn(self, x):
         return x + np.random.uniform(self.min, self.max, x.shape)
+    
+class TranslationAug(DataAugmentation):
+    def __init__(self, hMin, hMax, wMin, wMax):
+        """Translates the image. Translation in the height and width
+        axes are uniform random between their min and maxes (inclusive)
+        and applied per minibatch."""
+        self.hMin = hMin
+        self.hMax = hMax
+        self.wMin = wMin
+        self.wMax = wMax
+    
+    def fn(self, x):
+        delta_h = np.random.randint(self.hMin, self.hMax + 1)
+        delta_w = np.random.randint(self.wMin, self.wMax + 1)
+        
+        m, h, w = x.shape
+
+        padding_h = np.zeros((m, abs(delta_h), w))
+        padding_w = np.zeros((m, h, abs(delta_w)))
+
+        # delta_w and delta_h must have opposite sign convention if
+        # we want them to represent rightward and upward movement respectively
+        # This is because tensor width/height axes naturally go rightward/downward
+        if delta_h > 0:
+            moved_x = x[:, delta_h:h, :]
+            x = np.concatenate([moved_x, padding_h], axis=1)
+        elif delta_h < 0:
+            moved_x = x[:, 0:(h+delta_h), :]
+            x = np.concatenate([padding_h, moved_x], axis=1)
+
+        if delta_w > 0:
+            moved_x = x[:, :, 0:(w-delta_w)]
+            x = np.concatenate([padding_w, moved_x], axis=2)
+        elif delta_w < 0:
+            moved_x = x[:, :, -delta_w:w]
+            x = np.concatenate([moved_x, padding_w], axis=2)
+
+        return x
