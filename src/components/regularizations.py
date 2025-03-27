@@ -3,7 +3,7 @@ import numpy as np
 class Regularization:
     def __init__(self):
         """Create a regularization."""
-        pass
+        self.init_params = []
     def cost(self, w):
         """Returns the cost associated with regularization
         on learnable parameters ``w``."""
@@ -12,9 +12,12 @@ class Regularization:
         """Returns the derivative of the regularization cost
         at learnable parameters ``w``"""
         return np.zeros(w.shape)
+    def save_construction(self):
+        return {"name": self.__class__.__name__, "params": self.init_params}
 
-class L1Regularization:
+class L1Regularization(Regularization):
     def __init__(self, lmbda):
+        self.init_params = [lmbda]
         self.lmbda = lmbda
 
     def cost(self, w):
@@ -25,8 +28,9 @@ class L1Regularization:
         """Return the derivative of the regularization as a function of the weight ``w``."""
         return self.lmbda * np.sign(w)
 
-class L2Regularization:
+class L2Regularization(Regularization):
     def __init__(self, lmbda):
+        self.init_params = [lmbda]
         self.lmbda = lmbda
 
     def cost(self, w):
@@ -37,9 +41,11 @@ class L2Regularization:
         """Return the derivative of the regularization as a function of the weight ``w``."""
         return self.lmbda * w
     
-class L1PlusL2Regularization:
+class L1PlusL2Regularization(Regularization):
     # L1PlusL2 = alpha * L1 + beta * L2. 
     def __init__(self, lmbda, alpha = 1, beta = 1):
+        self.init_params = [lmbda, alpha, beta]
+
         self.lmbda = lmbda
         self.alpha = alpha
         self.beta = beta

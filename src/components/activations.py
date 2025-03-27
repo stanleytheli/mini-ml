@@ -1,6 +1,8 @@
 import numpy as np
 
 class ActivationFunction:
+    def __init__(self):
+        self.init_params = []
     def fn(self, z):
         """Returns the value of this Activation Function 
         evaluated at logits ``z``."""
@@ -9,10 +11,12 @@ class ActivationFunction:
         """Returns the derivative of this Activation Function
         at logits ``z``."""
         return np.ones(z.shape)
+    def save_construction(self):
+        return {"name": self.__class__.__name__, "params": self.init_params}
 
 class noActivation(ActivationFunction):
     pass
-    
+
 class Sigmoid(ActivationFunction):
     def fn(self, z):
         return 1.0/(1.0 + np.exp(-z))
@@ -37,6 +41,7 @@ class ReLU(ActivationFunction):
 class clippedReLU(ActivationFunction):
     def __init__(self, clip = 5):
         self.clip = clip
+        self.init_params = [clip]
     
     def fn(self, z):
         return np.clip(z, 0, self.clip)

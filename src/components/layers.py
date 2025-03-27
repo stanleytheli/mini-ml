@@ -9,6 +9,7 @@ class Layer:
     def __init__(self):
         """Create a Layer."""
         self.mode = Mode.TRAIN
+        self.init_params = []
         pass
     def set_optimizer(self, optimizer: Optimizer):
         """Set this Layer's optimizer to an Optimizer object
@@ -19,6 +20,15 @@ class Layer:
         self.mode = mode
     def initialize(self):
         """Initialize this Layer's learnable parameters."""
+        pass
+    def save_construction(self):
+        """Get this Layer's Class name and initialization parameters."""
+        return {"name": self.__class__.__name__, "params": self.init_params}
+    def save_data(self):
+        """Get this Layer's learnable parameters in the form of a dictionary."""
+        return {}
+    def load_data(self, data):
+        """Load this Layer's learnable parameters from the dictionary ``data``."""
         pass
     def feedforward(self, x):
         """Forward propagate a minibatch ``x``."""
@@ -31,12 +41,6 @@ class Layer:
     def get_reg_loss(self):
         """Get the cost associated with regularization on this Layer."""
         return 0
-    def save_data(self):
-        """Get this Layer's learnable parameters in the form of a dictionary."""
-        return {}
-    def load_data(self, data):
-        """Load this Layer's learnable parameters from the dictionary ``data``."""
-        pass
 
 class Convolution(Layer):
     def __init__(self, input_shape, filter_shape, filters, activation: ActivationFunction, 
@@ -48,6 +52,9 @@ class Convolution(Layer):
         filters = number of channels/filters. 
         output shape = (filters, height, width).
         Creates a convolutional layer."""
+        self.init_params = [input_shape, filter_shape, filters, "object>>activation", 
+                            "object>>regularization" if regularization else None, correct2Dinput]
+
         if correct2Dinput:
             input_shape = (1, *input_shape)
 
@@ -67,6 +74,21 @@ class Convolution(Layer):
         self.filters = np.random.randn(*self.filters.shape) / np.sqrt(np.prod(self.filter_shape))
         self.biases = np.random.randn(*self.biases.shape)
     
+    def save_construction(self):
+        save = super().save_construction()
+        save["activation"] = self.activation.save_construction() 
+        if self.regularization:
+            save["regularization"] = self.regularization.save_construction()
+        return save
+
+    def save_data(self):
+        return {"filters": self.filters.tolist(),
+                "biases": self.biases.tolist()}
+    
+    def load_data(self, data):
+        self.filters = np.array(data["filters"])
+        self.biases = np.array(data["biases"])
+
     def feedforward(self, x):
         """Given an ndarray x of shape (batch, channels, height, width),
         returns convolutions of shape (batch, channels*filters, height', width')
@@ -139,14 +161,6 @@ class Convolution(Layer):
         if self.regularization:
             return self.regularization.cost(self.filters)
         return 0
-    
-    def save_data(self):
-        return {"filters": self.filters.tolist(),
-                "biases": self.biases.tolist()}
-    
-    def load_data(self, data):
-        self.filters = np.array(data["filters"])
-        self.biases = np.array(data["biases"])
 
         
 class MaxPool(Layer):
@@ -157,6 +171,8 @@ class MaxPool(Layer):
         IMPORTANT: If 2D input, and there is a Flatten
         layer, make sure that the Flatten layer has 1 as its channels count. 
         """
+        self.init_params = [input_shape, pool_shape]
+
         self.correct2Dinput = False
         if len(input_shape) == 2:
             self.correct2Dinput = True
@@ -164,7 +180,7 @@ class MaxPool(Layer):
 
         self.C, self.H, self.W = input_shape
         self.pool_h, self.pool_w = pool_shape
-
+    
     def feedforward(self, x):
         if self.correct2Dinput:
             x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
@@ -192,6 +208,7 @@ class Flatten(Layer):
         Creates a flattener layer that flattens inputs
         of shape (batch, channels, height, width) 
         --> (channels*height*width, m)"""
+        self.init_params = [input_shape]
         self.input_shape = input_shape
         self.flattened_size = np.prod(input_shape)
     
@@ -212,6 +229,9 @@ class FullyConnected(Layer):
                  activation: ActivationFunction,
                  regularization: Regularization):
         """Creates a Fully Connected layer."""
+        self.init_params = [input_size, output_size, "object>>activation", 
+                            "object>>regularization" if regularization else None]
+
         self.input_size = input_size
         self.output_size = output_size
         self.weights = np.zeros((output_size, input_size))
@@ -220,6 +240,21 @@ class FullyConnected(Layer):
         self.regularization = regularization
 
         self.initialize()
+
+    def save_construction(self):
+        save = super().save_construction()
+        save["activation"] = self.activation.save_construction()
+        if self.regularization:
+            save["regularization"] = self.regularization.save_construction()
+        return save
+
+    def save_data(self):
+        return {"weights": self.weights.tolist(),
+                "bias": self.bias.tolist()}
+    
+    def load_data(self, data):
+        self.weights = np.array(data["weights"])
+        self.bias = np.array(data["bias"])
 
     def initialize(self):
         """Initializes the weights and biases of this layer to be Gaussian random."""
@@ -273,13 +308,6 @@ class FullyConnected(Layer):
             return self.regularization.cost(self.weights)
         return 0
     
-    def save_data(self):
-        return {"weights": self.weights.tolist(),
-                "bias": self.bias.tolist()}
-    
-    def load_data(self, data):
-        self.weights = np.array(data["weights"])
-        self.bias = np.array(data["bias"])
 
 
 class FullyConnectedPostbias(FullyConnected):
@@ -294,6 +322,16 @@ class FullyConnectedPostbias(FullyConnected):
         super().initialize()
         self.postbias = np.random.randn(self.output_size, 1)
     
+    def save_data(self):
+        return {"weights": self.weights.tolist(),
+                "bias": self.bias.tolist(),
+                "postbias": self.postbias.tolist()}
+    
+    def load_data(self, data):
+        self.weights = np.array(data["weights"])
+        self.bias = np.array(data["bias"])
+        self.postbias = np.array(data["postbias"])
+
     def feedforward(self, x):
         return super().feedforward(x) + self.postbias
 
@@ -332,13 +370,4 @@ class FullyConnectedPostbias(FullyConnected):
         return prev_delta
 
     
-    def save_data(self):
-        return {"weights": self.weights.tolist(),
-                "bias": self.bias.tolist(),
-                "postbias": self.postbias.tolist()}
-    
-    def load_data(self, data):
-        self.weights = np.array(data["weights"])
-        self.bias = np.array(data["bias"])
-        self.postbias = np.array(data["postbias"])
 

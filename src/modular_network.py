@@ -189,28 +189,84 @@ class Network:
         \partial a for the output activations."""
         return (output_activations-y)
     
+    def save_data(self):
+        """Return a dictionary of all the Network's learnables."""
+        return {str(i) : layer.save_data() for i, layer in enumerate(self.layers)}
+
+    def save_construction(self):
+        """Return this Network's construction dictionary."""
+        construction = {str(i) : layer.save_construction() for i, layer in enumerate(self.layers)}
+        construction["num_layers"] = self.num_layers
+        return construction
+    
     def save(self, filename):
-        """Save all the  network's learnable parameters
-          to the file ``filename``. 
-          Architecture is not (explicitly) saved!"""
-
-        data = {}
-        for i, layer in enumerate(self.layers):
-            data[str(i)] = layer.save_data()
-
+        """Save this Network to a file."""
         f = open(filename, "w")
-        json.dump(data, f)
+        json.dump({"construction": self.save_construction(),
+                   "data": self.save_data()}, f)
         f.close()
 
-    def load(self, filename):
-        """Load the parameters from ``filename`` onto this network.
-        Requires this network to have the same architecture as
-        the saved network. 
-        """
-        f = open(filename, "r")
-        data = json.load(f)
-        f.close()
+    # Helper function for loading nested Components
+    def load_object(construction):
+        """Process a Component's construction dictionary ``construction`` 
+        and return the Component created."""
+        targetClass = getattr(sys.modules[__name__], construction["name"])
+        params = construction["params"]
 
+        # Duplicate array to avoid changing the Components that created
+        # this construction dictionary
+        creationParams = []
+
+        # Process nested objects
+        for i, param in enumerate(params):
+            if isinstance(param, str) and "object>>" in param:
+                objectLookupName = param.split("object>>")[1]
+                object = Network.load_object(construction[objectLookupName])
+                creationParams.append(object)
+            else:
+                creationParams.append(param)
+        
+        return targetClass(*creationParams)
+        
+    def load_architecture(construction):
+        """Process a Network's construction dictionary and return
+        the Network created."""
+        layers = []
+
+        num_layers = construction["num_layers"]
+        for i in range(num_layers):
+            layers.append(Network.load_object(construction[str(i)]))
+        
+        return Network(layers)
+    
+    def load_data(self, data):
+        """Load the parameters from the data dictionary ``data``
+        onto this network. Requires this network to have the same
+        architecture as the saved network."""
         for i, layer in enumerate(self.layers):
             layer.load_data(data[str(i)])
+
+    def load(filename):
+        """Load the Network from ``filename`` and return the loaded Network."""
+        f = open(filename, "r")
+        saved = json.load(f)
+        f.close()
+
+        model = Network.load_architecture(saved["construction"])
+        model.load_data(saved["data"])
+
+        return model
+
+    # DEPRECATED -- OLD LOADING FUNCTION
+    # def load_data_from_file(self, filename):
+    #     """Load the parameters from ``filename`` onto this network.
+    #     Requires this network to have the same architecture as
+    #     the saved network. 
+    #     """
+    #     f = open(filename, "r")
+    #     data = json.load(f)
+    #     f.close()
+
+    #     for i, layer in enumerate(self.layers):
+    #         layer.load_data(data[str(i)])
 
