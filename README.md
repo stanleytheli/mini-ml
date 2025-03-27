@@ -70,7 +70,7 @@ combined = CombinedAug([translate, noise])
 ```
 Now pass in the data augmentation to the train function.
 ```python
-small_model.train(mnist_train, epochs=10, mini_batch_size=20, data_augmentation=combined  
+small_model.train(mnist_train, epochs=10, mini_batch_size=20, data_augmentation=combined)
 ```
 ### Save and Load
 We can save the Network to a JSON file.
