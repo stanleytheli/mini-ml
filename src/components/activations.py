@@ -33,7 +33,7 @@ class tanh(ActivationFunction):
 
 class ReLU(ActivationFunction):
     def fn(self, z):
-        return np.clip(z, 0)
+        return np.clip(z, 0, None)
     
     def derivative(self, z):
         return np.greater_equal(z, 0.0)
