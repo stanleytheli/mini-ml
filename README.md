@@ -1,6 +1,8 @@
 # Mini Deep Learning Library
 
-A mini deep learning library built from scratch  using only NumPy/SciPy for calculations. High level API allows for quickly and easily making and training models. 
+A mini deep learning library built from scratch  using only NumPy/SciPy for calculations. Support for DNNs and CNNs as well as several commonly used optimizers, cost functions, data augmentations, and regularizations. High level API allows you to get models up and running with just a few lines of code. 
+
+`src/demos.ipynb` has examples of creating and training networks. `src/feature_vis.ipynb` has an example of doing feature visualization using this library. 
 ## Loading Data
 Included already are the MNIST and Fashion-MNIST datasets.
 
@@ -21,7 +23,7 @@ reg1 = L1Regularization(4e-5)
 reg2 = L2Regularization(3e-5)
 
 # Small 784x30x30x10 DNN
-small_model = modular_network.Network([
+small_model = Network([
     Flatten((28, 28)),
     FullyConnected(28*28, 30, tanh(), reg1),
     FullyConnected(30, 30, tanh(), reg2),
@@ -31,13 +33,13 @@ small_model = modular_network.Network([
 We can also create Convolutional networks. Let's create a CNN that applies 8 5x5 filters, maxpools, applies 8 3x3s, maxpools, then feeds into a 30x30x10 DNN. We use the correct2Dinput flag to tell the first Convolution Layer that it's going to receive 2d inputs (height, width) instead of 3d (channel, height, width).
 ```python
 # Support for CNNs!
-conv_model = modular_network.Network([
+conv_model = Network([
     Convolution((28, 28), (5, 5), 8, tanh(), correct2Dinput=True),
     MaxPool((8, 24, 24)),
     Convolution((8, 12, 12), (3, 3), 8, tanh()),
-    MaxPool((4, 10, 10)),
-    Flatten((4, 5, 5)),
-    FullyConnected(4*5*5, 30, tanh(), reg2),
+    MaxPool((8, 10, 10)),
+    Flatten((8, 5, 5)),
+    FullyConnected(8*5*5, 30, tanh(), reg2),
     FullyConnected(30, 30, tanh(), reg2),
     FullyConnected(30, 10, Softmax(), reg2)
 ])
@@ -79,7 +81,7 @@ small_model.save("../save/new_network.json")
 ```
 Let's load a network.
 ```python
-loaded_model = modular_network.Network.load("../save/larger_network.json")
+loaded_model = Network.load("../save/larger_network.json")
 ```
 We can test its accuracy and cost using the accuracy function, which returns the number of correct classifications on a dataset.
 ```python
