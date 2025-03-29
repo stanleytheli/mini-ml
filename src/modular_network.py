@@ -103,7 +103,7 @@ class Network:
             print(f"Epoch {j+1} training complete, took {time2 - time1} seconds")
             curr_time += time2 - time1
             
-            if j % n_epochs_monitor == 0:
+            if (j+1) % n_epochs_monitor == 0:
                 times.append(curr_time)
                 if monitor_training_cost:
                     cost = self.total_cost(training_data[:10000])
