@@ -308,66 +308,68 @@ class FullyConnected(Layer):
             return self.regularization.cost(self.weights)
         return 0
     
+class ResidualFC(FullyConnected):
+    def __init__(self, input_size, 
+                 activation: ActivationFunction,
+                 regularization: Regularization):
+        """Creates a Residual Fully Connected layer."""
+        self.init_params = [input_size, "object>>activation", 
+                            "object>>regularization" if regularization else None]
 
+        self.input_size = input_size
+        self.weights = np.zeros((input_size, input_size))
+        self.bias = np.zeros((input_size, 1))
+        self.activation = activation
+        self.regularization = regularization
 
-class FullyConnectedPostbias(FullyConnected):
-    def __init__(self, input_size, output_size, activation: ActivationFunction,
-                  regularization: Regularization):
-        """Much like a FullyConnected layer, but with another set of biases 
-        applied *after* the activation function."""
-        self.postbias = np.zeros((output_size, 1))
-        super().__init__(input_size, output_size, activation, regularization)
-
+        self.initialize()
+    
     def initialize(self):
-        super().initialize()
-        self.postbias = np.random.randn(self.output_size, 1)
+        """Initializes the weights and biases of this layer to be Gaussian random."""
+        self.weights = np.random.randn(self.input_size, self.input_size) / np.sqrt(self.input_size)
+        self.bias = np.random.randn(self.input_size, 1)
     
-    def save_data(self):
-        return {"weights": self.weights.tolist(),
-                "bias": self.bias.tolist(),
-                "postbias": self.postbias.tolist()}
-    
-    def load_data(self, data):
-        self.weights = np.array(data["weights"])
-        self.bias = np.array(data["bias"])
-        self.postbias = np.array(data["postbias"])
-
     def feedforward(self, x):
-        return super().feedforward(x) + self.postbias
+        """Given an input x, returns the activations of this layer."""
+        self.prev_a = x
+
+        self.z = np.dot(self.weights, x) + self.bias
+        self.a = x + self.activation.fn(self.z)
+        
+        return self.a
 
     def backprop(self, delta):
-        # conveniently the unscaled error deltas are dC/da^l
-
-        # dC/dB^l 
-        nabla_beta = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
-        
+        """Given the unscaled error deltas of this layer, updates 
+        learnable parameters then returns the unscaled error deltas 
+        of the previous layer. Input: delta^l, Output: delta^l-1"""
+        # Input: unscaled delta^l
+        # f'^l(z^l)
         fp = self.activation.derivative(self.z)
-        # scaled delta^l = dC/dz^l
-        delta = delta * fp
+        # delta = unscaled delta^l
+        # delta_s = scaled delta^l
+        delta_s = delta * fp
 
         # compute prev_delta BEFORE updating weights!
-        prev_delta = np.dot(self.weights.transpose(), delta)
+        # for resnets, we add the unscaled because it hasn't been through the activation function
+        prev_delta = delta + np.dot(self.weights.transpose(), delta_s)
 
-        # dC/dw^l 
-        nabla_w = np.dot(delta, self.prev_a.transpose())
-        if self.regularization:
-            nabla_w += self.regularization.derivative(self.weights)
-        # dC/db^l
-        nabla_b = np.sum(delta, axis=1, keepdims=True) #sum over all training examples
+        if self.mode == Mode.TRAIN:
+            # dC/dw^l 
+            nabla_w = np.dot(delta_s, self.prev_a.transpose())
+            if self.regularization:
+                nabla_w += self.regularization.derivative(self.weights)
+            # dC/db^l
+            nabla_b = np.sum(delta_s, axis=1, keepdims=True) #sum over all training examples
 
-        nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
-        nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
-        nabla_beta = np.clip(nabla_beta, -gradientClip, gradientClip)
+            nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
+            nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
 
-        # update learnables
-        weights_upd, bias_upd, postbias_upd = self.optimizer.fn([nabla_w, nabla_b, nabla_beta])
+            # update learnables
+            weights_upd, bias_upd = self.optimizer.fn([nabla_w, nabla_b])
 
-        self.weights += weights_upd
-        self.bias += bias_upd
-        self.postbias += postbias_upd
+            self.weights += weights_upd
+            self.bias += bias_upd
 
         # return the unscaled delta^l-1
         return prev_delta
-
-    
 
