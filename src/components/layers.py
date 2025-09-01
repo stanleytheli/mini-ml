@@ -331,45 +331,11 @@ class ResidualFC(FullyConnected):
     
     def feedforward(self, x):
         """Given an input x, returns the activations of this layer."""
-        self.prev_a = x
-
-        self.z = np.dot(self.weights, x) + self.bias
-        self.a = x + self.activation.fn(self.z)
-        
+        self.a = x + super().feedforward(x)        
         return self.a
 
     def backprop(self, delta):
         """Given the unscaled error deltas of this layer, updates 
         learnable parameters then returns the unscaled error deltas 
         of the previous layer. Input: delta^l, Output: delta^l-1"""
-        # Input: unscaled delta^l
-        # f'^l(z^l)
-        fp = self.activation.derivative(self.z)
-        # delta = unscaled delta^l
-        # delta_s = scaled delta^l
-        delta_s = delta * fp
-
-        # compute prev_delta BEFORE updating weights!
-        # for resnets, we add the unscaled because it hasn't been through the activation function
-        prev_delta = delta + np.dot(self.weights.transpose(), delta_s)
-
-        if self.mode == Mode.TRAIN:
-            # dC/dw^l 
-            nabla_w = np.dot(delta_s, self.prev_a.transpose())
-            if self.regularization:
-                nabla_w += self.regularization.derivative(self.weights)
-            # dC/db^l
-            nabla_b = np.sum(delta_s, axis=1, keepdims=True) #sum over all training examples
-
-            nabla_w = np.clip(nabla_w, -gradientClip, gradientClip)
-            nabla_b = np.clip(nabla_b, -gradientClip, gradientClip)
-
-            # update learnables
-            weights_upd, bias_upd = self.optimizer.fn([nabla_w, nabla_b])
-
-            self.weights += weights_upd
-            self.bias += bias_upd
-
-        # return the unscaled delta^l-1
-        return prev_delta
-
+        return delta + super().backprop(delta)
