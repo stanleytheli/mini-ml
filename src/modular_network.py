@@ -8,7 +8,7 @@ from components import *
 
 class Network:
 
-    def __init__(self, layers, cost: CostFunction = None):
+    def __init__(self, layers: list[Layer], cost: CostFunction = None):
         self.num_layers = len(layers)
         self.layers = layers
         self.cost = cost
@@ -38,7 +38,7 @@ class Network:
         for layer in reversed(self.layers):
             delta = layer.backprop(delta)
 
-    def update_mini_batch(self, mini_batch, n, data_augmentation: DataAugmentation):
+    def update_mini_batch(self, mini_batch, data_augmentation: DataAugmentation):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
         The "mini_batch" is a list of tuples "(x, y)", and "eta"
@@ -97,7 +97,7 @@ class Network:
                 for k in range(0, n, mini_batch_size)]
             
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, len(training_data), data_augmentation)
+                self.update_mini_batch(mini_batch, data_augmentation)
             
             time2 = time.time()
             print(f"Epoch {j+1} training complete, took {time2 - time1} seconds")
